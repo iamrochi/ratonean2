@@ -1,40 +1,23 @@
 package com.example.ratonean2_app.navigation.presentation
 
-import androidx.compose.ui.graphics.Color
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalNavigationDrawer
-import androidx.compose.material3.rememberDrawerState
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.compose.NavHost
@@ -45,7 +28,6 @@ import com.example.ratonean2_app.R
 import com.example.ratonean2_app.list.presentation.view.ListScreen
 import com.example.ratonean2_app.map.presentation.state.MapIntent
 import com.example.ratonean2_app.map.presentation.state.MapViewState
-import com.example.ratonean2_app.map.presentation.state.SearchUiState
 import com.example.ratonean2_app.map.presentation.view.MapScreen
 import com.example.ratonean2_app.map.presentation.viewmodel.MapViewModel
 import com.example.ratonean2_app.navigation.presentation.components.DrawerContent
@@ -74,6 +56,19 @@ fun MainScreen(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    var selectedTabInHome by remember { mutableStateOf("map") }
+
+    LaunchedEffect(Unit) {
+        mapViewModel.events.collect { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                actionLabel = "VER LISTA",
+                duration = SnackbarDuration.Long
+            )
+        }
+    }
+
     ModalNavigationDrawer(
         drawerState = drawerState,
         gesturesEnabled = drawerState.isOpen,
@@ -90,37 +85,39 @@ fun MainScreen(
             )
         }
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            // 1. NAVEGACIÓN PRINCIPAL
-            NavHost(
-                navController = navController,
-                startDestination = "home",
-                modifier = Modifier.fillMaxSize()
-            ) {
-                composable("home") {
-                    HomePagerContent(
-                        uiState = uiState,
-                        onIntent = { mapViewModel.onIntent(it) },
-                        isSearchActive = active
+        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            Scaffold(
+                snackbarHost = {
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier.padding(bottom = 16.dp)
                     )
-                }
-                composable("profile") {
-                    ProfileScreen()
-                }
-                composable("shopping_list") {
-                    ShoppingListScreen()
+                },
+                containerColor = Color.Transparent
+            ) { padding ->
+                NavHost(
+                    navController = navController,
+                    startDestination = "home",
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    composable("home") {
+                        HomePagerContent(
+                            uiState = uiState,
+                            onIntent = { intent -> mapViewModel.onIntent(intent) },
+                            isSearchActive = active,
+                            selectedTab = selectedTabInHome,
+                            onTabChanged = { tab -> selectedTabInHome = tab }
+                        )
+                    }
+                    composable("profile") { ProfileScreen() }
+                    composable("shopping_list") { ShoppingListScreen() }
                 }
             }
 
             if (currentRoute == "home") {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
+                    modifier = Modifier.fillMaxWidth().statusBarsPadding(),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     SearchBarHeader(
                         query = query,
@@ -132,8 +129,42 @@ fun MainScreen(
                         onClearClick = { query = "" },
                         onIntent = { intent -> mapViewModel.onIntent(intent) },
                     )
+
+                    AnimatedVisibility(
+                        visible = !active,
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        HomeTabSelector(
+                            selectedTab = selectedTabInHome,
+                            onTabSelected = { selectedTabInHome = it }
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun HomeTabSelector(
+    selectedTab: String,
+    onTabSelected: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier.padding(top = 12.dp),
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            TabButton("Mapa", selectedTab == "map") { onTabSelected("map") }
+            TabButton("Lista", selectedTab == "list") { onTabSelected("list") }
         }
     }
 }
@@ -142,12 +173,12 @@ fun MainScreen(
 fun HomePagerContent(
     uiState: MapViewState,
     onIntent: (intent: MapIntent) -> Unit,
-    isSearchActive: Boolean
+    isSearchActive: Boolean,
+    selectedTab: String,
+    onTabChanged: (String) -> Unit
 ) {
-    var selectedTab by remember { mutableStateOf("map") }
     var currentIndex by remember { mutableIntStateOf(0) }
     val pagerState = rememberPagerState(pageCount = { 2 })
-    val scope = rememberCoroutineScope()
 
     LaunchedEffect(selectedTab) {
         val target = if (selectedTab == "map") 0 else 1
@@ -155,9 +186,12 @@ fun HomePagerContent(
             pagerState.animateScrollToPage(target)
         }
     }
+    
+    LaunchedEffect(pagerState.currentPage) {
+        onTabChanged(if (pagerState.currentPage == 0) "map" else "list")
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // EL PAGER (MAPA / LISTA)
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = false,
@@ -166,41 +200,26 @@ fun HomePagerContent(
         ) { page ->
             when (page) {
                 0 -> MapScreen(uiState = uiState, onIntent = onIntent)
-                1 -> ListScreen(uiState = uiState, onIntent = onIntent)
+                1 -> ListScreen(
+                    uiState = uiState,
+                    onIntent = onIntent,
+                    modifier = Modifier.padding(top = 160.dp)
+                )
             }
         }
 
-        // TABS (Solo si no estás buscando)
-        if (!isSearchActive) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(top = 72.dp), // Ajuste para que baje de la SearchBar
-                horizontalArrangement = Arrangement.Center
-            ) {
-                TabButton("Mapa", selectedTab == "map") { selectedTab = "map" }
-                TabButton("Lista", selectedTab == "list") { selectedTab = "list" }
-            }
-        }
-
-        // CARD DE PRODUCTO (Overlay en Mapa)
         if (selectedTab == "map" && uiState.searchProducts.isNotEmpty() && !isSearchActive) {
             Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 48.dp)
-                    .fillMaxWidth(),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
                 val products = uiState.searchProducts
-
                 if (products.size > 1) {
                     IconButton(
                         onClick = { currentIndex = if (currentIndex > 0) currentIndex - 1 else products.lastIndex },
-                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
+                        modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(50))
                     ) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = Color.Black)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
 
@@ -211,159 +230,20 @@ fun HomePagerContent(
                         productImageUrl = product.imageUrl ?: "",
                         productName = product.description,
                         productPrice = "$${product.listPrice}",
-                        modifier = Modifier
-                            .width(280.dp)
-                            .shadow(8.dp, RoundedCornerShape(16.dp))
+                        onAddClick = { onIntent(MapIntent.AddProductToCart(product)) },
+                        modifier = Modifier.width(280.dp)
                     )
                 }
 
                 if (products.size > 1) {
                     IconButton(
                         onClick = { currentIndex = if (currentIndex < products.lastIndex) currentIndex + 1 else 0 },
-                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
+                        modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp).background(MaterialTheme.colorScheme.surface, RoundedCornerShape(50))
                     ) {
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Siguiente", tint = Color.Black)
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Siguiente", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
         }
     }
 }
-
-//@OptIn(ExperimentalMaterial3Api::class)
-//@Composable
-//fun MainScreen(
-//    modifier: Modifier = Modifier,
-//    mapViewModel: MapViewModel = koinViewModel(),
-//) {
-//    val navController = rememberNavController()
-//    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-//    val scope = rememberCoroutineScope()
-//
-//    var query by remember { mutableStateOf("") }
-//    var active by remember { mutableStateOf(false) }
-//    var selectedTab by remember { mutableStateOf("map") }
-//
-//    val uiState by mapViewModel.state.collectAsStateWithLifecycle()
-//    var currentIndex by remember { mutableIntStateOf(0) }
-//
-//    val pagerState = rememberPagerState(pageCount = { 2 })
-//
-//    LaunchedEffect(selectedTab) {
-//        val target = if (selectedTab == "map") 0 else 1
-//        if (pagerState.currentPage != target) {
-//            pagerState.animateScrollToPage(target)
-//        }
-//    }
-//
-//    ModalNavigationDrawer(
-//        drawerState = drawerState,
-//        gesturesEnabled = drawerState.isOpen,
-//        drawerContent = {
-//            DrawerContent(
-//                onDestinationClicked = { route ->
-//                    scope.launch { drawerState.close() }
-//                    navController.navigate(route) {
-//                        popUpTo(navController.graph.startDestinationId) { inclusive = false }
-//                        launchSingleTop = true
-//                    }
-//                }
-//            )
-//        }
-//    ) {
-//        Box(
-//            modifier = Modifier
-//                .fillMaxSize()
-//                .background(MaterialTheme.colorScheme.background)
-//        ) {
-//            HorizontalPager(
-//                state = pagerState,
-//                userScrollEnabled = false,
-//                modifier = Modifier.fillMaxSize(),
-//                beyondViewportPageCount = 1
-//            ) { page ->
-//                when (page) {
-//                    0 -> MapScreen(
-//                        uiState = uiState,
-//                        onIntent = { mapViewModel.onIntent(it) }
-//                    )
-//                    1 -> ListScreen(
-//                        uiState = uiState,
-//                        onIntent = { mapViewModel.onIntent(it) }
-//                    )
-//                }
-//            }
-//
-//            Column(
-//                modifier = Modifier
-//                    .fillMaxSize()
-//                    .statusBarsPadding()
-//            ) {
-//                SearchBarHeader(
-//                    query = query,
-//                    onQueryChange = { query = it },
-//                    active = active,
-//                    onActiveChange = { active = it },
-//                    drawerState = drawerState,
-//                    uiState = uiState,
-//                    onClearClick = { query = "" },
-//                    onIntent = { intent -> mapViewModel.onIntent(intent) },
-//                )
-//
-//                if (!active) {
-//                    Row(
-//                        modifier = Modifier
-//                            .fillMaxWidth()
-//                            .padding(top = 8.dp),
-//                        horizontalArrangement = Arrangement.Center
-//                    ) {
-//                        TabButton("Mapa", selectedTab == "map") { selectedTab = "map" }
-//                        TabButton("Lista", selectedTab == "list") { selectedTab = "list" }
-//                    }
-//                }
-//            }
-//
-//            if (selectedTab == "map" && uiState.searchProducts.isNotEmpty()) {
-//                Box(
-//                    modifier = Modifier
-//                        .align(Alignment.BottomCenter)
-//                        .padding(bottom = 48.dp)
-//                        .fillMaxWidth(),
-//                    contentAlignment = Alignment.Center
-//                ) {
-//                    val products = uiState.searchProducts
-//
-//                    if (products.size > 1) {
-//                        IconButton(
-//                            onClick = { currentIndex = if (currentIndex > 0) currentIndex - 1 else products.lastIndex },
-//                            modifier = Modifier.align(Alignment.CenterStart).padding(start = 16.dp)
-//                        ) {
-//                            Icon(Icons.Default.ArrowBack, contentDescription = "Anterior", tint = Color.Black)
-//                        }
-//                    }
-//
-//                    val currentProduct = products.getOrNull(currentIndex)
-//                    currentProduct?.let { product ->
-//                        ProductCard(
-//                            storeLogoRes = R.drawable.markers_ratonean2,
-//                            productImageUrl = product.imageUrl ?: "",
-//                            productName = product.description,
-//                            productPrice = "$${product.listPrice}",
-//                            modifier = Modifier.width(280.dp).shadow(8.dp, RoundedCornerShape(16.dp))
-//                        )
-//                    }
-//
-//                    if (products.size > 1) {
-//                        IconButton(
-//                            onClick = { currentIndex = if (currentIndex < products.lastIndex) currentIndex + 1 else 0 },
-//                            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp)
-//                        ) {
-//                            Icon(Icons.Default.ArrowForward, contentDescription = "Siguiente", tint = Color.Black)
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
-

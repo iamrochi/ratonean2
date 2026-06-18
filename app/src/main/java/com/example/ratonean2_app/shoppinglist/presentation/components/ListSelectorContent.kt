@@ -13,6 +13,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -30,7 +32,8 @@ fun ListSelectorContent(
     lists: List<ShoppingList>,
     selectedId: String?,
     onSelect: (String) -> Unit,
-    onCreate: () -> Unit
+    onCreate: () -> Unit,
+    onDelete: (String) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -59,8 +62,19 @@ fun ListSelectorContent(
                         Icon(
                             imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.Circle,
                             contentDescription = null,
-                            tint = if (isSelected) MaterialTheme.colorScheme.primary else Color.Gray
+                            tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                    },
+                    trailingContent = {
+                        if (lists.size > 1) {
+                            IconButton(onClick = { onDelete(list.id) }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Eliminar",
+                                    tint = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
                     },
                     colors = ListItemDefaults.colors(
                         containerColor = if (isSelected)

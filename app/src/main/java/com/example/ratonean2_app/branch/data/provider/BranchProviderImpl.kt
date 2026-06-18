@@ -1,9 +1,11 @@
 package com.example.ratonean2_app.branch.data.provider
 
+import android.util.Log
 import com.example.ratonean2_app.branch.domain.model.Branch
 import com.example.ratonean2_app.branch.domain.provider.BranchProvider
 import com.example.ratonean2_app.core.network.ApiUrls
 import com.example.ratonean2_app.core.network.NetworkResponse
+import com.example.ratonean2_app.core.network.paginate
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
@@ -19,10 +21,15 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
-    override fun getAllBranches(): Flow<NetworkResponse<List<Branch>>> = flow {
+
+    private val TAG = "BranchProvider"
+
+    override fun getAllBranches(limit: Int, offset: Int): Flow<NetworkResponse<List<Branch>>> = flow {
         emit(NetworkResponse.Loading())
         try {
-            val response = client.get(ApiUrls.BRANCHES)
+            val response = client.get(ApiUrls.BRANCHES) {
+                paginate(limit, offset)
+            }
             if (response.status.isSuccess()) {
                 val branches = response.body<List<Branch>>()
                 emit(NetworkResponse.Success(branches))
@@ -52,22 +59,30 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
     override fun getNearbyBranches(
         latitude: Double,
         longitude: Double,
-        distance: Double
+        distance: Double,
+        limit: Int,
+        offset: Int
     ): Flow<NetworkResponse<List<Branch>>> = flow {
         try {
             emit(NetworkResponse.Loading())
+            Log.d(TAG, "🌐 GET ${ApiUrls.BRANCHES_NEARBY} (lat=$latitude, lon=$longitude, radius=$distance)")
             val response = client.get(ApiUrls.BRANCHES_NEARBY) {
                 parameter("lat", latitude)
                 parameter("lon", longitude)
                 parameter("radius", distance)
+                paginate(limit, offset)
             }
+            Log.d(TAG, "🌐 Response status: ${response.status}")
             if (response.status.isSuccess()) {
                 val branches = response.body<List<Branch>>()
+                Log.d(TAG, "🌐 Body: ${branches.size} sucursales")
                 emit(NetworkResponse.Success(branches))
             } else {
+                Log.e(TAG, "🌐 Error status: ${response.status.description}")
                 emit(NetworkResponse.Failure(response.status.description))
             }
         } catch (e: Exception) {
+            Log.e(TAG, "🌐 Exception: ${e.message}", e)
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }

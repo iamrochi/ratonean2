@@ -1,9 +1,8 @@
 package com.example.ratonean2_app.product.data.provider
 
-import android.util.Log.e
-import com.example.ratonean2_app.branch.domain.model.Branch
 import com.example.ratonean2_app.core.network.ApiUrls
 import com.example.ratonean2_app.core.network.NetworkResponse
+import com.example.ratonean2_app.core.network.paginate
 import com.example.ratonean2_app.product.domain.helper.appendParams
 import com.example.ratonean2_app.product.domain.model.Product
 import com.example.ratonean2_app.product.domain.provider.ProductProvider
@@ -20,13 +19,14 @@ import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
-import kotlin.collections.joinToString
 
 class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
-    override fun getAllProducts(): Flow<NetworkResponse<List<Product>>> = flow {
+    override fun getAllProducts(limit: Int, offset: Int): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
-            val response = client.get(ApiUrls.PRODUCTS)
+            val response = client.get(ApiUrls.PRODUCTS) {
+                paginate(limit, offset)
+            }
             if (response.status.isSuccess()) {
                 val products = response.body<List<Product>>()
                 emit(NetworkResponse.Success(products))
@@ -101,22 +101,35 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
         }
     }
 
-    override fun getProductsByBranch(branchId: String): Flow<NetworkResponse<List<Product>>> = flow {
+    override fun getProductsByBranch(
+        branchId: String,
+        limit: Int,
+        offset: Int
+    ): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
-            val products: List<Product> = client.get(ApiUrls.PRODUCTS_BY_BRANCH.replace("{branchId}", branchId)).body()
-            emit(NetworkResponse.Success(products))
+            val response = client.get(ApiUrls.PRODUCTS_BY_BRANCH.replace("{branchId}", branchId)) {
+                paginate(limit, offset)
+            }
+            emit(NetworkResponse.Success(response.body()))
         } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message))
         }
     }
 
-    override fun getProductsWithPromos(branchId: String, brand: String?): Flow<NetworkResponse<List<Product>>> = flow {
+    override fun getProductsWithPromos(
+        branchId: String,
+        brand: String?,
+        limit: Int,
+        offset: Int
+    ): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
             val url = ApiUrls.PRODUCTS_PROMOS.appendParams(mapOf("branchId" to branchId, "brand" to brand))
-            val products: List<Product> = client.get(url).body()
-            emit(NetworkResponse.Success(products))
+            val response = client.get(url) {
+                paginate(limit, offset)
+            }
+            emit(NetworkResponse.Success(response.body()))
         } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message))
         }
@@ -124,16 +137,20 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
 
     override fun getProductsBySearchInBranches(
         branchIds: List<String>,
-        query: String
+        query: String,
+        limit: Int,
+        offset: Int
     ): Flow<NetworkResponse<List<Product>>> =
-        flow {
+        flow<NetworkResponse<List<Product>>> {
             emit(NetworkResponse.Loading())
             val idsParam = branchIds.joinToString(",")
             val url = ApiUrls.PRODUCTS_BY_SEARCH_IN_BRANCHES.appendParams(
                 mapOf("branchIds" to idsParam, "q" to query)
             )
-            val products: List<Product> = client.get(url).body()
-            emit(NetworkResponse.Success(products))
+            val response = client.get(url) {
+                paginate(limit, offset)
+            }
+            emit(NetworkResponse.Success(response.body()))
         }.catch { e ->
             if (e is kotlinx.coroutines.CancellationException) throw e
             emit(NetworkResponse.Failure(e.message))
@@ -141,7 +158,8 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
 
     override fun getPopularProducts(
         branchId: List<String>,
-        limit: Int?
+        limit: Int?,
+        offset: Int
     ): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
@@ -149,8 +167,10 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             val params = mutableMapOf("branchIds" to idsParam)
             limit?.let { params["limitPerKeyword"] = it.toString() }
             val url = ApiUrls.PRODUCTS_POPULAR.appendParams(params)
-            val products: List<Product> = client.get(url).body()
-            emit(NetworkResponse.Success(products))
+            val response = client.get(url) {
+                paginate(offset = offset)
+            }
+            emit(NetworkResponse.Success(response.body()))
         } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message))
         }

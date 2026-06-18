@@ -23,4 +23,5 @@ interface ShoppingListRepository{
     suspend fun updateItemQuantity(itemId: String, quantity: Int)
     suspend fun toggleItemCheck(itemId: String, isChecked: Boolean)
     suspend fun deleteItem(itemId: String)
+    suspend fun deleteCheckedItems(listId: String)
 }

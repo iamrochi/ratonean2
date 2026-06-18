@@ -28,7 +28,8 @@ data class BranchEntity(
     val thursdaySchedule: String?,
     val fridaySchedule: String?,
     val saturdaySchedule: String?,
-    val sundaySchedule: String?
+    val sundaySchedule: String?,
+    val lastUpdated: Long = System.currentTimeMillis()
 )
 
 fun BranchEntity.toDomain(): Branch =
@@ -54,4 +55,30 @@ fun BranchEntity.toDomain(): Branch =
         fridaySchedule = fridaySchedule,
         saturdaySchedule = saturdaySchedule,
         sundaySchedule = sundaySchedule
+    )
+
+fun Branch.toEntity(): BranchEntity =
+    BranchEntity(
+        branchId = branchId,
+        commerceId = commerceId,
+        flagId = flagId,
+        name = name,
+        type = type,
+        street = street,
+        number = number,
+        latitude = latitude,
+        longitude = longitude,
+        observations = observations,
+        neighborhood = neighborhood,
+        postalCode = postalCode,
+        location = location,
+        province = province,
+        mondaySchedule = mondaySchedule,
+        tuesdaySchedule = tuesdaySchedule,
+        wednesdaySchedule = wednesdaySchedule,
+        thursdaySchedule = thursdaySchedule,
+        fridaySchedule = fridaySchedule,
+        saturdaySchedule = saturdaySchedule,
+        sundaySchedule = sundaySchedule,
+        lastUpdated = System.currentTimeMillis()
     )

@@ -10,15 +10,20 @@ class ProductLocalDataSource(
     fun getProductsByBranch(branchId: String): Flow<List<ProductEntity>> =
         productDao.getByBranch(branchId)
 
-    fun getAllProducts(): Flow<List<ProductEntity>> =
-        productDao.getAll()
+    fun getProductById(productId: String): Flow<ProductEntity?> =
+        productDao.getById(productId)
+
+    fun searchProductsInBranches(branchIds: List<String>, query: String): Flow<List<ProductEntity>> =
+        productDao.searchInBranches(branchIds, query)
+
+    fun getPopularProductsInBranches(branchIds: List<String>, limit: Int): Flow<List<ProductEntity>> =
+        productDao.getPopularInBranches(branchIds, limit)
+
+    fun getPromosByBranch(branchId: String): Flow<List<ProductEntity>> =
+        productDao.getPromosByBranch(branchId)
 
     suspend fun insertProducts(products: List<ProductEntity>) {
         productDao.insertAll(products)
-    }
-
-    suspend fun insertProduct(product: ProductEntity) {
-        productDao.insertAll(listOf(product))
     }
 
     suspend fun clearCache() {

@@ -18,6 +18,8 @@ val locationModule = module {
             get(),
             get(),
             get(),
-            get())
+            get(),
+            get()
+        )
     }
 }

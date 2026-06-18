@@ -20,4 +20,5 @@ sealed class ShoppingIntent {
     data class UpdateQuantity(val itemId: String, val newQty: Int) : ShoppingIntent()
     data class ToggleItem(val itemId: String, val isChecked: Boolean) : ShoppingIntent()
     data class DeleteItem(val itemId: String) : ShoppingIntent()
+    object ClearCheckedItems : ShoppingIntent()
 }

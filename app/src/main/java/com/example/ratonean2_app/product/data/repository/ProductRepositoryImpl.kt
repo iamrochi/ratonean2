@@ -19,28 +19,38 @@ class ProductRepositoryImpl(
 ) : ProductRepository {
 
     private val TAG = "ProductRepository"
+    private val CACHE_EXPIRATION_MS = 10 * 60 * 1000 // 10 minutos
 
-    override fun getProductsByBranch(branchId: String): Flow<List<Product>> = flow {
-        var hasLocal = false
-        try {
-            val local = localDataSource.getProductsByBranch(branchId).first().map { it.toDomain() }
-            if (local.isNotEmpty()) {
-                Log.d(TAG, "📦 Room: ${local.size} sucursales")
-                emit(local)
-                hasLocal = true
+    private fun isCacheFresh(lastUpdated: Long?): Boolean {
+        if (lastUpdated == null) return false
+        return (System.currentTimeMillis() - lastUpdated) < CACHE_EXPIRATION_MS
+    }
+
+    override fun getProductsByBranch(
+        branchId: String,
+        limit: Int,
+        offset: Int
+    ): Flow<List<Product>> = flow {
+        val localEntities = localDataSource.getProductsByBranch(branchId).first()
+        val local = localEntities.map { it.toDomain() }
+
+        if (local.isNotEmpty()) {
+            emit(local)
+            val mostRecent = localEntities.maxOfOrNull { it.lastUpdated } ?: 0L
+            if (isCacheFresh(mostRecent)) {
+                Log.d(TAG, "✅ Cache fresh para branch $branchId, saltando API")
+                return@flow
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error local: ${e.message}")
         }
 
-        productProvider.getProductsByBranch(branchId).collect { response ->
+        productProvider.getProductsByBranch(branchId, limit, offset).collect { response ->
             if (response is NetworkResponse.Success) {
                 val remote = response.data.orEmpty()
                 if (remote.isNotEmpty()) {
                     localDataSource.insertProducts(remote.map { it.toEntity() })
                     emit(remote)
                 }
-            } else if (response is NetworkResponse.Failure && !hasLocal) {
+            } else if (response is NetworkResponse.Failure && local.isEmpty()) {
                 emit(emptyList())
             }
         }
@@ -48,31 +58,47 @@ class ProductRepositoryImpl(
 
     override fun getProductsBySearchInBranches(
         branchIds: List<String>,
-        query: String
+        query: String,
+        limit: Int,
+        offset: Int
     ): Flow<List<Product>> = flow {
-        productProvider.getProductsBySearchInBranches(branchIds, query).collect { response ->
+        // Primero intentamos local (con query filtrada en Room)
+        val localEntities = localDataSource.searchProductsInBranches(branchIds, query).first()
+        if (localEntities.isNotEmpty()) {
+            emit(localEntities.map { it.toDomain() })
+            val mostRecent = localEntities.maxOfOrNull { it.lastUpdated } ?: 0L
+            if (isCacheFresh(mostRecent)) {
+                Log.d(TAG, "✅ Cache fresh para búsqueda '$query', saltando API")
+                return@flow
+            }
+        }
+
+        productProvider.getProductsBySearchInBranches(branchIds, query, limit, offset).collect { response ->
             if (response is NetworkResponse.Success) {
                 val remote = response.data.orEmpty()
                 localDataSource.insertProducts(remote.map { it.toEntity() })
                 emit(remote)
-            } else if (response is NetworkResponse.Failure) {
-                val fallback = localDataSource.getAllProducts().first()
-                    .filter { it.branchId in branchIds && it.description.contains(query, true) }
-                    .map { it.toDomain() }
-                emit(fallback)
+            } else if (response is NetworkResponse.Failure && localEntities.isEmpty()) {
+                emit(emptyList())
             }
         }
     }.catch { emit(emptyList()) }
 
-    override fun getPopularProducts(branchIds: List<String>, limit: Int?): Flow<List<Product>> = flow {
-        val local = localDataSource.getAllProducts().first()
-            .filter { it.branchId in branchIds }
-            .take(20)
-            .map { it.toDomain() }
+    override fun getPopularProducts(
+        branchIds: List<String>,
+        limit: Int?,
+        offset: Int
+    ): Flow<List<Product>> = flow {
+        val limitCount = limit ?: 20
+        val localEntities = localDataSource.getPopularProductsInBranches(branchIds, limitCount).first()
 
-        if (local.isNotEmpty()) emit(local)
+        if (localEntities.isNotEmpty()) {
+            emit(localEntities.map { it.toDomain() })
+            val mostRecent = localEntities.maxOfOrNull { it.lastUpdated } ?: 0L
+            if (isCacheFresh(mostRecent)) return@flow
+        }
 
-        productProvider.getPopularProducts(branchIds, limit).collect { response ->
+        productProvider.getPopularProducts(branchIds, limit, offset).collect { response ->
             if (response is NetworkResponse.Success) {
                 val remote = response.data.orEmpty()
                 localDataSource.insertProducts(remote.map { it.toEntity() })
@@ -82,11 +108,11 @@ class ProductRepositoryImpl(
     }.catch { emit(emptyList()) }
 
     override fun getProductById(id: String): Flow<Product?> = flow<Product?> {
-        val local = localDataSource.getAllProducts().first()
-            .find { it.productId == id }?.toDomain()
+        val local = localDataSource.getProductById(id).first()
 
         if (local != null) {
-            emit(local)
+            emit(local.toDomain())
+            if (isCacheFresh(local.lastUpdated)) return@flow
         }
 
         productProvider.getProductById(id).collect { response ->
@@ -102,8 +128,20 @@ class ProductRepositoryImpl(
         emit(null)
     }
 
-    override fun getProductsWithPromos(branchId: String, brand: String?): Flow<List<Product>> = flow {
-        productProvider.getProductsWithPromos(branchId, brand).collect { response ->
+    override fun getProductsWithPromos(
+        branchId: String,
+        brand: String?,
+        limit: Int,
+        offset: Int
+    ): Flow<List<Product>> = flow {
+        val localEntities = localDataSource.getPromosByBranch(branchId).first()
+        if (localEntities.isNotEmpty()) {
+            emit(localEntities.map { it.toDomain() })
+            val mostRecent = localEntities.maxOfOrNull { it.lastUpdated } ?: 0L
+            if (isCacheFresh(mostRecent)) return@flow
+        }
+
+        productProvider.getProductsWithPromos(branchId, brand, limit, offset).collect { response ->
             if (response is NetworkResponse.Success) {
                 val remote = response.data.orEmpty()
                 localDataSource.insertProducts(remote.map { it.toEntity() })

@@ -71,6 +71,8 @@ class ShoppingListLocalDataSource(private val dao: ShoppingListDao) {
 
     suspend fun removeItem(itemId: String) = dao.deleteItem(itemId)
 
+    suspend fun removeCheckedItems(listId: String) = dao.deleteCheckedItems(listId)
+
 
     private suspend fun createDefaultList(): ShoppingListEntity {
         val newList = ShoppingListEntity(name = "Mi Lista Principal", isDefault = true)

@@ -53,6 +53,12 @@ class ShoppingListViewModel(
 
                 is ShoppingIntent.RenameList ->
                     manageListUseCase.rename(intent.listId, intent.newName)
+
+                ShoppingIntent.ClearCheckedItems -> {
+                    state.value.selectedList?.let { list ->
+                        manageItemUseCase.clearChecked(list.id)
+                    }
+                }
             }
         }
     }

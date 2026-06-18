@@ -51,4 +51,7 @@ class ShoppingListRepositoryImpl(
 
     override suspend fun deleteItem(itemId: String) =
         localDataSource.removeItem(itemId)
+
+    override suspend fun deleteCheckedItems(listId: String) =
+        localDataSource.removeCheckedItems(listId)
 }

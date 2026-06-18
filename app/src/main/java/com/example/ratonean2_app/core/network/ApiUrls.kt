@@ -1,7 +1,7 @@
 package com.example.ratonean2_app.core.network
 
 object ApiUrls {
-    const val BASE_URL =  "http://192.168.100.6:8080"
+    const val BASE_URL =  "http://192.168.100.40:8080"
     const val LOGIN = "${BASE_URL}/auth/login"
     const val AUTH_GOOGLE = "${BASE_URL}/auth/google"
     const val USERS = "${BASE_URL}/users"

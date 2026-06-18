@@ -27,7 +27,8 @@ data class ProductEntity(
     val promoLegend1: String?,
     val promoPrice2: Double?,
     val promoLegend2: String?,
-    val imageUrl: String?
+    val imageUrl: String?,
+    val lastUpdated: Long = System.currentTimeMillis()
 )
 
 fun ProductEntity.toDomain(): Product = Product(
@@ -69,5 +70,6 @@ fun Product.toEntity(): ProductEntity = ProductEntity(
     promoLegend1 = promoLegend1,
     promoPrice2 = promoPrice2,
     promoLegend2 = promoLegend2,
-    imageUrl = imageUrl
+    imageUrl = imageUrl,
+    lastUpdated = System.currentTimeMillis()
 )

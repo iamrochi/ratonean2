@@ -15,19 +15,20 @@ data class Branch(
     val number: String,
     val latitude: Double,
     val longitude: Double,
-    val observations: String?,
+    val observations: String? = null,
     val neighborhood: String,
     val postalCode: String,
     val location: String,
     val province: String,
-    val mondaySchedule: String?,
-    val tuesdaySchedule: String?,
-    val wednesdaySchedule: String?,
-    val thursdaySchedule: String?,
-    val fridaySchedule: String?,
-    val saturdaySchedule: String?,
-    val sundaySchedule: String?
+    val mondaySchedule: String? = null,
+    val tuesdaySchedule: String? = null,
+    val wednesdaySchedule: String? = null,
+    val thursdaySchedule: String? = null,
+    val fridaySchedule: String? = null,
+    val saturdaySchedule: String? = null,
+    val sundaySchedule: String? = null
 )
+
 fun Branch.toEntity(): BranchEntity =
     BranchEntity(
         branchId = branchId,
@@ -52,29 +53,3 @@ fun Branch.toEntity(): BranchEntity =
         saturdaySchedule = saturdaySchedule,
         sundaySchedule = sundaySchedule
     )
-
-//[
-//  {
-//    "commerceId": "string",
-//    "flagId": "string",
-//    "branchId": "string",
-//    "name": "string",
-//    "type": "string",
-//    "street": "string",
-//    "number": "string",
-//    "latitude": 0,
-//    "longitude": 0,
-//    "observations": "string",
-//    "neighborhood": "string",
-//    "postalCode": "string",
-//    "location": "string",
-//    "province": "string",
-//    "mondaySchedule": "string",
-//    "tuesdaySchedule": "string",
-//    "wednesdaySchedule": "string",
-//    "thursdaySchedule": "string",
-//    "fridaySchedule": "string",
-//    "saturdaySchedule": "string",
-//    "sundaySchedule": "string"
-//  }
-//]

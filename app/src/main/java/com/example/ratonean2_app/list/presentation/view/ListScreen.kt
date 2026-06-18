@@ -24,24 +24,18 @@ import kotlin.collections.isNotEmpty
 @Composable
 fun ListScreen(
     uiState: MapViewState,
-    onIntent: (MapIntent) -> Unit
+    onIntent: (MapIntent) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
-            .padding(
-                top = 142.dp,
-                start = 8.dp,
-                end = 8.dp,
-                bottom = 8.dp
-            )
+            .padding(horizontal = 8.dp, vertical = 8.dp)
     ) {
         when (val status = uiState.searchStatus) {
             is SearchStatus.Loading -> {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             }
-
             is SearchStatus.Error -> {
                 Text(
                     text = "Error: ${status.message}",
@@ -49,7 +43,6 @@ fun ListScreen(
                     color = MaterialTheme.colorScheme.error
                 )
             }
-
             else -> {
                 if (uiState.location == null && uiState.branches.isEmpty()) {
                     Column {
@@ -61,9 +54,7 @@ fun ListScreen(
                         locationName = uiState.location?.name ?: "Tu corazón ♡",
                         products = uiState.searchProducts.ifEmpty { uiState.popularProductsCache },
                         branches = uiState.filteredBranches.ifEmpty { uiState.branches },
-                        onKeywordClick = { keyword ->
-                            onIntent(MapIntent.SearchQuery(keyword))
-                        }
+                        onIntent = onIntent
                     )
                 }
             }
@@ -76,7 +67,7 @@ private fun ListContent(
     locationName: String,
     products: List<Product>,
     branches: List<Branch>,
-    onKeywordClick: (String) -> Unit
+    onIntent: (MapIntent) -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -103,7 +94,10 @@ private fun ListContent(
                 items(chunkedProducts) { columnProducts ->
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         columnProducts.forEach { product ->
-                            ProductItem(product = product)
+                            ProductItem(
+                                product = product,
+                                onAddClick = { onIntent(MapIntent.AddProductToCart(product)) }
+                            )
                         }
                     }
                 }
@@ -115,7 +109,7 @@ private fun ListContent(
         KeywordRow(
             keywords = listOf("pan", "leche", "arroz", "yerba", "fideos", "azúcar", "carne", "cerveza", "vino", "lavandina", "jabón", "detergente")
         ) { keyword ->
-            onKeywordClick(keyword)
+            onIntent(MapIntent.SearchQuery(keyword))
         }
 
         if (branches.isNotEmpty()) {

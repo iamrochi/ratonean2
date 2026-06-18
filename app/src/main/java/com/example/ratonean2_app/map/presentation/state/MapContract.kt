@@ -48,6 +48,7 @@ sealed class MapIntent {
     data class UpdateLocation(val lat: Double, val lon: Double, val name: String? = null) : MapIntent()
     data class SearchQuery(val query: String) : MapIntent()
     data class OnPermissionResult(val granted: Boolean) : MapIntent()
+    data class AddProductToCart(val product: Product) : MapIntent()
 }
 
 sealed interface LocationPermissionState {

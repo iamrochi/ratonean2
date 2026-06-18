@@ -1,50 +1,59 @@
 package com.example.ratonean2_app.navigation.presentation.components
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 
 @Composable
 fun TabButton(
     text: String,
-    selectedTab: Boolean,
+    selected: Boolean,
     onClick: () -> Unit
 ) {
-    Column(
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+        label = "bgColor"
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "textColor"
+    )
+
+    Box(
         modifier = Modifier
-            .padding(horizontal = 16.dp)
-            .clickable { onClick() },
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 2.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick
+            )
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
-            style = MaterialTheme.typography.bodyMedium.copy(
-                fontWeight = if (selectedTab) FontWeight.Bold else FontWeight.Normal,
-                color = if (selectedTab) Color.Black else Color.LightGray
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
+                fontSize = 14.sp,
+                color = contentColor
             )
         )
-
-        Spacer(modifier = Modifier.height(4.dp))
-
-        if (selectedTab) {
-            Box(
-                modifier = Modifier
-                    .height(4.dp)
-                    .width(16.dp)
-                    .background(Color.Black, shape = RoundedCornerShape(12.dp))
-            )
-        } else {
-            Spacer(modifier = Modifier.height(6.dp)) // mantiene la alineación
-        }
     }
 }

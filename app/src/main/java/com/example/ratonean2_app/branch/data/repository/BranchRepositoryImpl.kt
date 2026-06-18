@@ -19,76 +19,92 @@ class BranchRepositoryImpl(
 ) : BranchRepository {
 
     private val TAG = "BranchRepository"
+    private val CACHE_EXPIRATION_MS = 30 * 60 * 1000 // 30 minutos para sucursales
+
+    private fun isCacheFresh(lastUpdated: Long?): Boolean {
+        if (lastUpdated == null) return false
+        val diff = System.currentTimeMillis() - lastUpdated
+        return diff < CACHE_EXPIRATION_MS
+    }
 
     override fun getNearbyBranches(
         lat: Double,
         lon: Double,
-        distance: Double
+        distance: Double,
+        limit: Int,
+        offset: Int
     ): Flow<List<Branch>> = flow {
+        Log.d(TAG, "🔍 Buscando sucursales cerca de: $lat, $lon (radio: ${distance}km)")
 
-        var localBranches: List<Branch> = emptyList()
-        try {
-            localBranches = localDataSource.getNearbyBranches(lat, lon, distance)
-                .first()
-                .map { it.toDomain() }
+        val localEntities = localDataSource.getNearbyBranches(lat, lon, distance).first()
+        val localBranches = localEntities.map { it.toDomain() }
 
-            Log.d(TAG, "📦 Room: Despachando ${localBranches.size} sucursales inmediatamente")
+        if (localBranches.isNotEmpty()) {
+            Log.d(TAG, "📦 Room: Despachando ${localBranches.size} sucursales")
             emit(localBranches)
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error Room: ${e.message}")
+            
+            val mostRecent = localEntities.maxOfOrNull { it.lastUpdated } ?: 0L
+            if (isCacheFresh(mostRecent)) {
+                Log.d(TAG, "✅ Cache fresh (${(System.currentTimeMillis() - mostRecent)/1000}s), saltando API")
+                return@flow
+            }
+        } else {
+            Log.d(TAG, "⚪ Room: No hay sucursales guardadas en este radio")
         }
 
-        remoteProvider.getNearbyBranches(lat, lon, distance).collect { response ->
-            if (response is NetworkResponse.Success) {
-                val remoteBranches = response.data.orEmpty()
-                if (remoteBranches.isNotEmpty()) {
-                    Log.d(TAG, "🌐 API: Llegó data fresca, actualizando Room y UI")
-                    try {
-                        localDataSource.insertBranches(remoteBranches.map { it.toEntity() })
-                        emit(remoteBranches)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "❌ Error al persistir API: ${e.message}")
-                        emit(remoteBranches)
+        Log.d(TAG, "🌐 API: Consultando sucursales cercanas...")
+        remoteProvider.getNearbyBranches(lat, lon, distance, limit, offset).collect { response ->
+            when (response) {
+                is NetworkResponse.Success -> {
+                    val remoteBranches = response.data.orEmpty()
+                    Log.d(TAG, "🌐 API Success: Recibidas ${remoteBranches.size} sucursales")
+                    if (remoteBranches.isNotEmpty()) {
+                        try {
+                            localDataSource.insertBranches(remoteBranches.map { it.toEntity() })
+                            emit(remoteBranches)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "❌ Error al persistir API: ${e.message}")
+                            emit(remoteBranches)
+                        }
                     }
                 }
-            } else if (response is NetworkResponse.Failure) {
-                Log.w(TAG, "⚠️ API falló (o timeout). El usuario sigue viendo Room.")
-                if (localBranches.isEmpty()) emit(emptyList())
+                is NetworkResponse.Failure -> {
+                    Log.w(TAG, "⚠️ API Failure: ${response.error}")
+                    if (localBranches.isEmpty()) emit(emptyList())
+                }
+                is NetworkResponse.Loading -> {
+                    Log.d(TAG, "⏳ API Loading...")
+                }
             }
         }
     }.catch { e ->
-        Log.e(TAG, "🚨 Error crítico en Repository: ${e.message}")
+        Log.e(TAG, "🚨 Error crítico en Repository: ${e.message}", e)
         emit(emptyList())
     }
 
-    override fun getBranchById(id: String): Flow<Branch?> = flow {
-        var foundInLocal = false
-
-        try {
-            val local = localDataSource.getBranchById(id).first()?.toDomain()
-            if (local != null) {
-                Log.d(TAG, "📦 Room: Detalle de sucursal $id despachado")
-                emit(local)
-                foundInLocal = true
+    override fun getBranchById(id: String): Flow<Branch?> = flow<Branch?> {
+        val localEntity = localDataSource.getBranchById(id).first()
+        
+        if (localEntity != null) {
+            emit(localEntity.toDomain())
+            if (isCacheFresh(localEntity.lastUpdated)) {
+                Log.d(TAG, "✅ Cache fresh para sucursal $id")
+                return@flow
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "❌ Error Room getBranchById: ${e.message}")
         }
 
         remoteProvider.getBranchById(id).collect { response ->
             if (response is NetworkResponse.Success) {
                 response.data?.let { remoteBranch ->
-                    Log.d(TAG, "🌐 API: Detalle fresco de $id recibido")
                     try {
                         localDataSource.insertBranch(remoteBranch.toEntity())
-                        emit(remoteBranch) // Segunda emisión: pisa con lo más nuevo
+                        emit(remoteBranch)
                     } catch (e: Exception) {
                         Log.e(TAG, "❌ Error persistiendo branch: ${e.message}")
                         emit(remoteBranch)
                     }
                 }
-            } else if (response is NetworkResponse.Failure && !foundInLocal) {
-                Log.w(TAG, "⚠️ API falló y no había nada local para $id")
+            } else if (response is NetworkResponse.Failure && localEntity == null) {
                 emit(null)
             }
         }

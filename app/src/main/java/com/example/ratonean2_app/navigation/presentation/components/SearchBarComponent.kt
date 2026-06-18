@@ -1,33 +1,23 @@
 package com.example.ratonean2_app.navigation.presentation.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DockedSearchBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.SearchBarDefaults
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DrawerState
-import androidx.compose.material3.MaterialTheme
 import com.example.ratonean2_app.map.presentation.state.MapIntent
 import com.example.ratonean2_app.map.presentation.state.MapViewState
-import com.example.ratonean2_app.map.presentation.state.SearchStatus
-import com.example.ratonean2_app.map.presentation.viewmodel.MapViewModel
 import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchBarHeader(
     query: String,
@@ -42,136 +32,55 @@ fun SearchBarHeader(
 ) {
     val scope = rememberCoroutineScope()
 
-    DockedSearchBar(
-        inputField = {
-            SearchBarDefaults.InputField(
-                query = query,
-                onQueryChange = {
-                    onQueryChange(it)
-                    onIntent(MapIntent.SearchQuery(it))
-                },
-                onSearch = {
-                    onIntent(MapIntent.SearchQuery(query))
-                    onActiveChange(false)
-                },
-                expanded = active,
-                onExpandedChange = onActiveChange,
-                placeholder = { Text("Buscar sucursales, productos...") },
-                leadingIcon = {
-                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                        Icon(Icons.Default.Menu, contentDescription = "Menú")
-                    }
-                }
-            )
-        },
-        expanded = active,
-        onExpandedChange = onActiveChange,
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .shadow(4.dp, RoundedCornerShape(32.dp)),
-        content = {
-            if (active) {
-                when (val status = uiState.searchStatus) {
-                    is SearchStatus.Loading -> {
-                        Text("Buscando...", modifier = Modifier.padding(16.dp))
-                    }
-                    is SearchStatus.Error -> {
-                        Text("Error: ${status.message}", modifier = Modifier.padding(16.dp))
-                    }
-                    else -> {
-                        LazyColumn(modifier = Modifier.fillMaxWidth()) {
-
-                            // 1. SECCIÓN SUCURSALES
-                            if (uiState.filteredBranches.isNotEmpty()) {
-                                item {
-                                    Text("Sucursales",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        modifier = Modifier.padding(16.dp, 8.dp)
-                                    )
-                                }
-                                items(uiState.filteredBranches) { branch ->
-                                    Text(
-                                        text = "📍 ${branch.name}",
-                                        modifier = Modifier
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                onIntent(MapIntent.UpdateLocation(
-                                                    branch.latitude,
-                                                    branch.longitude,
-                                                    branch.name
-                                                ))
-                                                onActiveChange(false)
-                                            }
-                                    )
-                                }
-                            }
-
-                            // 2. SECCIÓN PRODUCTOS
-                            if (uiState.searchProducts.isNotEmpty()) {
-                                item {
-                                    Text("Productos",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        modifier = Modifier.padding(16.dp, 8.dp)
-                                    )
-                                }
-                                items(uiState.searchProducts) { product ->
-                                    Text(
-                                        text = "🛒 ${product.description} - ${product.brand}",
-                                        modifier = Modifier
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                // TODO: Mandar intent para filtrar por este producto específico si es necesario
-                                                onActiveChange(false)
-                                            }
-                                    )
-                                }
-                            }
-
-                            // 3. SECCIÓN LUGARES
-                            if (uiState.searchPlaces.isNotEmpty()) {
-                                item {
-                                    Text("Lugares",
-                                        style = MaterialTheme.typography.labelLarge,
-                                        modifier = Modifier.padding(16.dp, 8.dp)
-                                    )
-                                }
-                                items(uiState.searchPlaces) { place ->
-                                    Text(
-                                        text = "🚩 ${place.displayName}",
-                                        modifier = Modifier
-                                            .padding(horizontal = 12.dp, vertical = 8.dp)
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                onIntent(MapIntent.UpdateLocation(
-                                                    place.lat.toDouble(),
-                                                    place.lon.toDouble(),
-                                                    place.name
-                                                ))
-                                                onActiveChange(false)
-                                                onClearClick()
-                                            }
-                                    )
-                                }
-                            }
-
-                            // 4. ESTADO VACÍO
-                            if (uiState.filteredBranches.isEmpty() &&
-                                uiState.searchProducts.isEmpty() &&
-                                uiState.searchPlaces.isEmpty() &&
-                                query.isNotEmpty()
-                            ) {
-                                item {
-                                    Text("No se encontraron resultados para '$query'",
-                                        modifier = Modifier.padding(16.dp))
-                                }
-                            }
-                        }
-                    }
-                }
+            .height(56.dp),
+        shape = RoundedCornerShape(28.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier.fillMaxSize().padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                Icon(
+                    imageVector = Icons.Default.Menu,
+                    contentDescription = "Menú",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
+
+            Box(modifier = Modifier.weight(1f).padding(horizontal = 8.dp)) {
+                if (query.isEmpty()) {
+                    Text(
+                        text = "¿Qué buscamos hoy?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = {
+                        onQueryChange(it)
+                        onIntent(MapIntent.SearchQuery(it))
+                    },
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-    )
+    }
 }

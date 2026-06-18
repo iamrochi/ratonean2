@@ -26,6 +26,7 @@ class ManageShoppingItemUseCase(private val repository: ShoppingListRepository) 
     suspend fun updateQuantity(itemId: String, qty: Int) = repository.updateItemQuantity(itemId, qty)
     suspend fun toggleCheck(itemId: String, checked: Boolean) = repository.toggleItemCheck(itemId, checked)
     suspend fun delete(itemId: String) = repository.deleteItem(itemId)
+    suspend fun clearChecked(listId: String) = repository.deleteCheckedItems(listId)
 }
 
 class ManageShoppingListUseCase(private val repository: ShoppingListRepository) {

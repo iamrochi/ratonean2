@@ -1,5 +1,6 @@
 package com.example.ratonean2_app.map.presentation.viewmodel
 
+import android.R.attr.description
 import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
@@ -19,12 +20,16 @@ import com.example.ratonean2_app.places.domain.model.PlaceResult
 import com.example.ratonean2_app.places.domain.usecase.GetPlacesUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetPopularProductsUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsBySearchInBranches
+import com.example.ratonean2_app.shoppinglist.domain.usecases.AddToActiveListUseCase
+import com.example.ratonean2_app.shoppinglist.domain.usecases.ManageShoppingItemUseCase
 import com.example.ratonean2_app.user.domain.usecase.GetUserPrefsLocationUseCase
 import com.example.ratonean2_app.user.domain.usecase.SaveUserPrefsLocationUseCase
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
@@ -40,10 +45,15 @@ class MapViewModel(
     private val getPlacesUseCase: GetPlacesUseCase,
     private val getUserPrefsLocationUseCase: GetUserPrefsLocationUseCase,
     private val saveUserPrefsLocationUseCase: SaveUserPrefsLocationUseCase,
+    private val addToActiveListUseCase: AddToActiveListUseCase,
+
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(MapViewState())
     val state: StateFlow<MapViewState> = _state.asStateFlow()
+
+    private val _events = MutableSharedFlow<String>()
+    val events = _events.asSharedFlow()
 
     @Immutable
     private class SearchManager {
@@ -63,10 +73,14 @@ class MapViewModel(
             }
             is MapIntent.UpdateLocation -> handleUpdateLocation(intent.lat, intent.lon, intent.name)
             is MapIntent.SearchQuery -> handleSearch(intent.query)
+            is MapIntent.AddProductToCart -> handleAddProduct(intent.product)
         }
     }
 
     private fun handleLoadLocation() {
+        // Carga inicial de productos aunque no haya ubicación aún
+        loadPopularProducts(emptyList())
+
         viewModelScope.launch {
             _state.update { it.copy(mapStatus = MapStatus.Loading) }
             try {
@@ -204,10 +218,15 @@ class MapViewModel(
         }
     }
 
-
-
     private fun handlePermissionResult(granted: Boolean) {
         val pState = if (granted) LocationPermissionState.Granted else LocationPermissionState.Denied
         _state.update { it.copy(permissionState = pState) }
+    }
+
+    private fun handleAddProduct(product: com.example.ratonean2_app.product.domain.model.Product) {
+        viewModelScope.launch {
+            addToActiveListUseCase(product)
+            _events.emit("Se agregó ${product.description} a tu lista")
+        }
     }
 }

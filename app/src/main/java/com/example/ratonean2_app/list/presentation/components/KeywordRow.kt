@@ -50,7 +50,7 @@ fun KeywordRow(
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 contentColor = MaterialTheme.colorScheme.onSurface
                             ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                         ) {
                             Column(
                                 modifier = Modifier
