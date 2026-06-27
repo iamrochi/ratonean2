@@ -11,10 +11,12 @@ import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.plugin
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import org.koin.dsl.module
+import java.util.UUID
 
 
 val networkModule = module {
@@ -40,20 +42,35 @@ val networkModule = module {
                             "⚠️ Demasiadas peticiones. Reintenta después de ${response.headers[HttpHeaders.RetryAfter] ?: "1"} seg."
                         )
                     }
+                    if (response.status == HttpStatusCode.Unauthorized) {
+                        AuthManager.currentToken = null
+                    }
                 }
             }
         }
 
         client.plugin(HttpSend).intercept { request ->
             val path = request.url.pathSegments.joinToString("/", prefix = "/")
-            val publicPaths = listOf("/auth/login", "/auth/register", "/auth/google")
-            val isPublic = publicPaths.any { path.startsWith(it) }
+            val publicPaths = setOf(
+                "/auth/login",
+                "/auth/google",
+                "/users",
+                "/product/nearby",
+                "/branch/nearby",
+                "/product/popularProducts"
+            )
+            val isPublic = path in publicPaths
 
             if (!isPublic) {
                 AuthManager.currentToken?.let { token ->
                     request.header(HttpHeaders.Authorization, "Bearer $token")
                 }
             }
+
+            if (request.method in listOf(HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete, HttpMethod.Patch)) {
+                request.header("Idempotency-Key", UUID.randomUUID().toString())
+            }
+
             execute(request)
         }
 

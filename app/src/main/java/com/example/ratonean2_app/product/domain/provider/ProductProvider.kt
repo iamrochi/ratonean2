@@ -1,6 +1,7 @@
 package com.example.ratonean2_app.product.domain.provider
 
 import com.example.ratonean2_app.core.network.NetworkResponse
+import com.example.ratonean2_app.product.data.dto.BranchWithProductsResponse
 import com.example.ratonean2_app.product.domain.model.Product
 import kotlinx.coroutines.flow.Flow
 
@@ -28,8 +29,16 @@ interface ProductProvider {
         offset: Int = 0
     ): Flow<NetworkResponse<List<Product>>>
     fun getPopularProducts(
-        branchId: List<String>,
+        branchIds: List<String>,
         limit: Int? = null,
         offset: Int = 0
     ): Flow<NetworkResponse<List<Product>>>
+
+    fun getProductsNearby(
+        latitude: Double,
+        longitude: Double,
+        maxDistance: Double? = null,
+        limit: Int = 50,
+        offset: Int = 0
+    ): Flow<NetworkResponse<List<BranchWithProductsResponse>>>
 }

@@ -20,6 +20,7 @@ import com.example.ratonean2_app.places.domain.model.PlaceResult
 import com.example.ratonean2_app.places.domain.usecase.GetPlacesUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetPopularProductsUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsBySearchInBranches
+import com.example.ratonean2_app.product.domain.usecase.GetProductsNearbyUseCase
 import com.example.ratonean2_app.shoppinglist.domain.usecases.AddToActiveListUseCase
 import com.example.ratonean2_app.shoppinglist.domain.usecases.ManageShoppingItemUseCase
 import com.example.ratonean2_app.user.domain.usecase.GetUserPrefsLocationUseCase
@@ -42,6 +43,7 @@ class MapViewModel(
     private val getNearbyBranchesUseCase: GetNearbyBranchesUseCase,
     private val getProductsBySearchInBranches: GetProductsBySearchInBranches,
     private val getPopularProductsUseCase: GetPopularProductsUseCase,
+    private val getProductsNearbyUseCase: GetProductsNearbyUseCase,
     private val getPlacesUseCase: GetPlacesUseCase,
     private val getUserPrefsLocationUseCase: GetUserPrefsLocationUseCase,
     private val saveUserPrefsLocationUseCase: SaveUserPrefsLocationUseCase,
@@ -138,14 +140,29 @@ class MapViewModel(
             val newLocation = LocationModel(name, lat, lon)
             _state.update { it.copy(location = newLocation, mapStatus = MapStatus.Loading) }
 
-            getNearbyBranchesUseCase(lat, lon, distance).collect { branches ->
-                _state.update { it.copy(
-                    branches = branches,
-                    mapStatus = MapStatus.Success
-                ) }
+            // 1. Mostrar sucursales rápido (desde cache local si existe)
+            val branchesJob = launch {
+                getNearbyBranchesUseCase(lat, lon, distance).collect { branches ->
+                    _state.update { it.copy(
+                        branches = branches,
+                        mapStatus = MapStatus.Success // Ya podemos mostrar el mapa
+                    ) }
+                }
+            }
 
-                if (branches.isNotEmpty()) {
-                    loadPopularProducts(branches.map { it.branchId })
+            // 2. Cargar productos populares y actualizar todo desde el nuevo endpoint combinado
+            getProductsNearbyUseCase(lat, lon, distance).collect { results ->
+                branchesJob.cancel() // Ya tenemos data fresca, cancelamos el otro flow
+                val branches = results.map { it.branch }
+                val products = results.flatMap { it.products }.distinctBy { it.productId }
+
+                _state.update { state ->
+                    state.copy(
+                        branches = branches,
+                        popularProductsCache = products,
+                        searchProducts = if (state.searchStatus == SearchStatus.Idle) products else state.searchProducts,
+                        mapStatus = MapStatus.Success
+                    )
                 }
             }
         }

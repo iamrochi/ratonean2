@@ -19,10 +19,25 @@ class LoginViewModel(private val authProvider: AuthProvider) : ViewModel() {
             try {
                 val response = authProvider.loginWithGoogle(idToken)
                 AuthManager.currentToken = response.token
-                _state.update { "JWT: ${response.token}" }
+                AuthManager.userId = response.userId
+                _state.update { "Login exitoso (Google)" }
+            } catch (e: Exception) {
+                _state.update { "Error: ${e.message}" }
+            }
+        }
+    }
+
+    fun loginWithEmail(email: String, password: String) {
+        viewModelScope.launch {
+            try {
+                val response = authProvider.loginWithEmail(email, password)
+                AuthManager.currentToken = response.token
+                AuthManager.userId = response.userId
+                _state.update { "Login exitoso (Email)" }
             } catch (e: Exception) {
                 _state.update { "Error: ${e.message}" }
             }
         }
     }
 }
+

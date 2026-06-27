@@ -15,3 +15,9 @@ data class UserResponse(
     val name: String,
     val email: String
 )
+
+@Serializable
+data class UpdateUserRequest(
+    val name: String,
+    val email: String
+)

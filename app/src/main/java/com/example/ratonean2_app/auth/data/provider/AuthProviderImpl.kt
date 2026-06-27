@@ -1,9 +1,11 @@
 package com.example.ratonean2_app.auth.data.provider
 
+import com.example.ratonean2_app.auth.data.dto.AuthResponse
 import com.example.ratonean2_app.auth.data.dto.CreateUserRequest
 import com.example.ratonean2_app.auth.data.dto.GoogleTokenRequest
-import com.example.ratonean2_app.auth.data.dto.JwtResponse
+import com.example.ratonean2_app.auth.data.dto.LoginRequest
 import com.example.ratonean2_app.auth.domain.provider.AuthProvider
+import com.example.ratonean2_app.core.network.ApiUrls
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.ClientRequestException
@@ -12,12 +14,12 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 
 class AuthProviderImpl(private val client: HttpClient): AuthProvider {
-    override suspend fun loginWithGoogle(token: String): JwtResponse {
+    override suspend fun loginWithGoogle(token: String): AuthResponse {
         return try {
-            client.post("http://10.0.2.2:8080/auth/google") {
+            client.post(ApiUrls.AUTH_GOOGLE) {
                 contentType(ContentType.Application.Json)
                 setBody(GoogleTokenRequest(token))
-            }.body()
+            }.body<AuthResponse>()
         } catch (e: ClientRequestException) { // 4xx
             val errorText = e.response.bodyAsText()
             throw Exception("Error al loguear: $errorText")
@@ -27,12 +29,15 @@ class AuthProviderImpl(private val client: HttpClient): AuthProvider {
     override suspend fun loginWithEmail(
         email: String,
         password: String
-    ): String {
-        TODO("Not yet implemented")
+    ): AuthResponse {
+        return client.post(ApiUrls.LOGIN) {
+            contentType(ContentType.Application.Json)
+            setBody(LoginRequest(email, password))
+        }.body<AuthResponse>()
     }
 
     override suspend fun createUserWithEmail(name: String, email: String, password: String?) {
-        client.post("http://10.0.2.2:8080/users") {
+        client.post(ApiUrls.USERS) {
             contentType(ContentType.Application.Json)
             setBody(CreateUserRequest(name, email, password))
         }

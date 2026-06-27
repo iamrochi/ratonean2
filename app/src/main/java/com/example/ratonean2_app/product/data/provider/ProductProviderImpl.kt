@@ -3,6 +3,7 @@ package com.example.ratonean2_app.product.data.provider
 import com.example.ratonean2_app.core.network.ApiUrls
 import com.example.ratonean2_app.core.network.NetworkResponse
 import com.example.ratonean2_app.core.network.paginate
+import com.example.ratonean2_app.product.data.dto.BranchWithProductsResponse
 import com.example.ratonean2_app.product.domain.helper.appendParams
 import com.example.ratonean2_app.product.domain.model.Product
 import com.example.ratonean2_app.product.domain.provider.ProductProvider
@@ -157,13 +158,13 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
         }
 
     override fun getPopularProducts(
-        branchId: List<String>,
+        branchIds: List<String>,
         limit: Int?,
         offset: Int
     ): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
-            val idsParam = branchId.joinToString(",")
+            val idsParam = branchIds.joinToString(",")
             val params = mutableMapOf("branchIds" to idsParam)
             limit?.let { params["limitPerKeyword"] = it.toString() }
             val url = ApiUrls.PRODUCTS_POPULAR.appendParams(params)
@@ -175,5 +176,33 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             emit(NetworkResponse.Failure(e.message))
         }
 
+    }
+
+    override fun getProductsNearby(
+        latitude: Double,
+        longitude: Double,
+        maxDistance: Double?,
+        limit: Int,
+        offset: Int
+    ): Flow<NetworkResponse<List<BranchWithProductsResponse>>> = flow {
+        emit(NetworkResponse.Loading())
+        try {
+            val params = mutableMapOf(
+                "lat" to latitude.toString(),
+                "lon" to longitude.toString()
+            )
+            maxDistance?.let { params["radius"] = it.toString() }
+            val url = ApiUrls.PRODUCTS_NEARBY.appendParams(params)
+            val response = client.get(url) {
+                paginate(limit, offset)
+            }
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        }
     }
 }

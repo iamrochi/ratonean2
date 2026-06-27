@@ -1,7 +1,10 @@
 package com.example.ratonean2_app.product.data.repository
 
 import android.util.Log
+import com.example.ratonean2_app.branch.data.local.BranchLocalDataSource
+import com.example.ratonean2_app.branch.domain.model.toEntity
 import com.example.ratonean2_app.core.network.NetworkResponse
+import com.example.ratonean2_app.product.data.dto.BranchWithProductsResponse
 import com.example.ratonean2_app.product.data.entity.toDomain
 import com.example.ratonean2_app.product.data.entity.toEntity
 import com.example.ratonean2_app.product.data.local.ProductLocalDataSource
@@ -15,6 +18,7 @@ import kotlinx.coroutines.flow.flow
 
 class ProductRepositoryImpl(
     private val localDataSource: ProductLocalDataSource,
+    private val branchLocalDataSource: BranchLocalDataSource,
     private val productProvider: ProductProvider
 ) : ProductRepository {
 
@@ -25,6 +29,36 @@ class ProductRepositoryImpl(
         if (lastUpdated == null) return false
         return (System.currentTimeMillis() - lastUpdated) < CACHE_EXPIRATION_MS
     }
+
+    override fun getProductsNearby(
+        latitude: Double,
+        longitude: Double,
+        maxDistance: Double?,
+        limit: Int,
+        offset: Int
+    ): Flow<List<BranchWithProductsResponse>> = flow {
+        // Emitir primero desde cache local (sucursales) si es necesario
+        // Pero como es un endpoint combinado, lo mejor es emitir lo que venga de la red
+        // y persistirlo. Para velocidad, el MapViewModel ya usa getNearbyBranchesUseCase.
+        
+        productProvider.getProductsNearby(latitude, longitude, maxDistance, limit, offset).collect { response ->
+            if (response is NetworkResponse.Success) {
+                val data = response.data.orEmpty()
+                
+                // Cachear sucursales y productos obtenidos
+                val allBranches = data.map { it.branch }
+                val allProducts = data.flatMap { it.products }
+                
+                if (allBranches.isNotEmpty()) {
+                    branchLocalDataSource.insertBranches(allBranches.map { it.toEntity() })
+                }
+                if (allProducts.isNotEmpty()) {
+                    localDataSource.insertProducts(allProducts.map { it.toEntity() })
+                }
+                emit(data)
+            }
+        }
+    }.catch { emit(emptyList()) }
 
     override fun getProductsByBranch(
         branchId: String,

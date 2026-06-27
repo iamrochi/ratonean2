@@ -13,6 +13,7 @@ import com.example.ratonean2_app.product.domain.usecase.GetPopularProductsUseCas
 import com.example.ratonean2_app.product.domain.usecase.GetProductByIdUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsByBranchUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsBySearchInBranches
+import com.example.ratonean2_app.product.domain.usecase.GetProductsNearbyUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsWithPromosUseCase
 import com.example.ratonean2_app.product.domain.usecase.UpdateProductUseCase
 import com.example.ratonean2_app.product.presentation.viewmodel.ProductViewModel
@@ -31,9 +32,10 @@ val productModule = module {
     factory { GetProductsWithPromosUseCase(get()) }
     factory { GetProductsBySearchInBranches(get()) }
     factory { GetPopularProductsUseCase(get()) }
+    factory { GetProductsNearbyUseCase(get()) }
 
     single { get<AppDatabase>().productDao() }
     single { ProductLocalDataSource(get()) }
     single<ProductProvider> { ProductProviderImpl(get()) }
-    single<ProductRepository> { ProductRepositoryImpl(get(), get()) }
+    single<ProductRepository> { ProductRepositoryImpl(get(), get(), get()) }
 }

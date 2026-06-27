@@ -22,6 +22,7 @@ object ApiUrls {
 
     const val PRODUCTS_BY_SEARCH_IN_BRANCHES = "${BASE_URL}/product/searchNearby"
     const val PRODUCTS_POPULAR = "${BASE_URL}/product/popularProducts"
+    const val PRODUCTS_NEARBY = "${BASE_URL}/product/nearby"
 
     const val PLACES_URL = "https://nominatim.openstreetmap.org/search"
 }

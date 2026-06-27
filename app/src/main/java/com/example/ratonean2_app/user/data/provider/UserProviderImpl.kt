@@ -1,5 +1,6 @@
 package com.example.ratonean2_app.user.data.provider
 
+import com.example.ratonean2_app.auth.data.dto.UpdateUserRequest
 import com.example.ratonean2_app.core.network.ApiUrls
 import com.example.ratonean2_app.core.network.NetworkResponse
 import com.example.ratonean2_app.user.domain.model.User
@@ -17,25 +18,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class UserProviderImpl(private val client: HttpClient) : UserProvider {
-    override fun getUsers(): Flow<NetworkResponse<List<User>>> = flow {
-        emit(NetworkResponse.Loading())
-        try {
-            val response = client.get(ApiUrls.USERS)
-            if (response.status.isSuccess()) {
-                val users = response.body<List<User>>()
-                emit(NetworkResponse.Success(users))
-            } else {
-                emit(NetworkResponse.Failure(response.status.description))
-            }
-        } catch (e: Exception) {
-            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
-        }
-    }
-
-    override fun getUserById(id: String): Flow<NetworkResponse<User>> = flow {
+    override fun getUserById(id: Int): Flow<NetworkResponse<User>> = flow {
         try {
             emit(NetworkResponse.Loading())
-            val response = client.get(ApiUrls.USER_BY_ID.replace("{id}", id))
+            val response = client.get(ApiUrls.USER_BY_ID.replace("{id}", id.toString()))
             if (response.status.isSuccess()) {
                 val user = response.body<User>()
                 emit(NetworkResponse.Success(user))
@@ -47,7 +33,7 @@ class UserProviderImpl(private val client: HttpClient) : UserProvider {
         }
     }
 
-    override fun getUSerByEmail(email: String): Flow<NetworkResponse<User>> = flow {
+    override fun getUserByEmail(email: String): Flow<NetworkResponse<User>> = flow {
         try {
             emit(NetworkResponse.Loading())
             val response = client.get(ApiUrls.USER_BY_EMAIL.replace("{email}", email))
@@ -62,10 +48,10 @@ class UserProviderImpl(private val client: HttpClient) : UserProvider {
         }
     }
 
-    override fun deleteUser(id: String): Flow<NetworkResponse<Unit>> = flow {
+    override fun deleteUser(id: Int): Flow<NetworkResponse<Unit>> = flow {
         try {
             emit(NetworkResponse.Loading())
-            val response = client.delete(ApiUrls.USER_BY_ID.replace("{id}", id))
+            val response = client.delete(ApiUrls.USER_BY_ID.replace("{id}", id.toString()))
             if (response.status.isSuccess()) {
                 emit(NetworkResponse.Success(Unit))
             } else {
@@ -76,10 +62,10 @@ class UserProviderImpl(private val client: HttpClient) : UserProvider {
         }
     }
 
-    override fun updateUser(userUpdate: User): Flow<NetworkResponse<Unit>> = flow {
+    override fun updateUser(id: Int, userUpdate: UpdateUserRequest): Flow<NetworkResponse<Unit>> = flow {
         try {
             emit(NetworkResponse.Loading())
-            val response = client.put(ApiUrls.USER_BY_ID.replace("{id}", userUpdate.id)) {
+            val response = client.put(ApiUrls.USER_BY_ID.replace("{id}", id.toString())) {
                 contentType(ContentType.Application.Json)
                 setBody(userUpdate)
             }

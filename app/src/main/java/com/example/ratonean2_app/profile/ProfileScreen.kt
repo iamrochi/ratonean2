@@ -11,17 +11,28 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ratonean2_app.auth.domain.AuthManager
+import com.example.ratonean2_app.profile.presentation.viewmodel.ProfileViewModel
+import org.koin.androidx.compose.koinViewModel
 
-
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    viewModel: ProfileViewModel = koinViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val userId = AuthManager.userId
+
+    LaunchedEffect(userId) {
+        userId?.let { viewModel.loadUser(it) }
+    }
+
     var darkMode by remember { mutableStateOf(false) }
     var searchRadius by remember { mutableFloatStateOf(5f) }
     var preferredOrder by remember { mutableStateOf("Precio más bajo") }
@@ -78,9 +89,15 @@ fun ProfileScreen() {
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // Sección: Información personal
-                ProfileInfoRow("Nombre", "Rocio Mercado", "Editar")
-                ProfileInfoRow("Correo electrónico", "merochiayelen@gmail.com", "Editar")
-                ProfileInfoRow("Contraseña", "********", "Cambiar contraseña")
+                ProfileInfoRow("Nombre", uiState.user?.name ?: "Cargando...", "Editar") {
+                    // Acción editar nombre
+                }
+                ProfileInfoRow("Correo electrónico", uiState.user?.email ?: "Cargando...", "Editar") {
+                    // Acción editar email
+                }
+                ProfileInfoRow("Contraseña", "********", "Cambiar contraseña") {
+                    // Acción cambiar pass
+                }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
@@ -142,7 +159,7 @@ fun ProfileScreen() {
 
                 // Botón de eliminar cuenta
                 OutlinedButton(
-                    onClick = { /* eliminar cuenta */ },
+                    onClick = { userId?.let { viewModel.deleteUser(it) } },
                     border = BorderStroke(1.dp, Color.Red),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color.Red
@@ -158,7 +175,7 @@ fun ProfileScreen() {
 }
 
 @Composable
-fun ProfileInfoRow(label: String, value: String, buttonText: String) {
+fun ProfileInfoRow(label: String, value: String, buttonText: String, onClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -172,7 +189,7 @@ fun ProfileInfoRow(label: String, value: String, buttonText: String) {
             Text(label, style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
             Text(value, style = MaterialTheme.typography.bodyLarge)
         }
-        TextButton(onClick = { /* acción editar */ }) {
+        TextButton(onClick = onClick) {
             Text(buttonText)
         }
     }

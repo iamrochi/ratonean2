@@ -37,13 +37,18 @@ class RegisterViewModel(
     }
 
     fun registerUser() {
+        val password = _uiState.value.password
+        if (password.length < 8) {
+            _uiState.value = _uiState.value.copy(error = "La contraseña debe tener al menos 8 caracteres")
+            return
+        }
         viewModelScope.launch {
             try {
                 _uiState.value = _uiState.value.copy(isLoading = true, error = null)
                 authProvider.createUserWithEmail(
                     name = _uiState.value.name,
                     email = _uiState.value.email,
-                    password = _uiState.value.password
+                    password = password
                 )
                 _uiState.value = _uiState.value.copy(isLoading = false, success = true)
             } catch (e: Exception) {
