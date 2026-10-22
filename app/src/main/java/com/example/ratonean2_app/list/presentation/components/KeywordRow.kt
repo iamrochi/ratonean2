@@ -6,6 +6,7 @@ import androidx.compose.foundation.lazy.items
 import com.example.ratonean2_app.R
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -27,7 +28,8 @@ fun KeywordRow(
             style = MaterialTheme.typography.titleMedium
         )
 
-        val chunkedKeywords = keywords.chunked(2) // 2 keywords por columna
+        // Memoizado + keys estables (antes se recalculaba y sin key).
+        val chunkedKeywords = remember(keywords) { keywords.chunked(2) }
 
         LazyRow(
             modifier = Modifier
@@ -35,7 +37,7 @@ fun KeywordRow(
                 .padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(chunkedKeywords) { columnKeywords ->
+            items(chunkedKeywords, key = { it.joinToString("|") }) { columnKeywords ->
                 Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
@@ -68,7 +70,8 @@ fun KeywordRow(
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Icon(
                                     painter = painterResource(id = R.drawable.trendingup),
-                                    contentDescription = "Tendencia",
+                                    // Decorativo: el keyword ya es el texto (evita N anuncios).
+                                    contentDescription = null,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }

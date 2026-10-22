@@ -1,6 +1,6 @@
 package com.example.ratonean2_app.product.di
 
-import com.example.ratonean2_app.core.data.database.AppDatabase
+import com.example.ratonean2_app.core.data.database.CatalogDatabase
 import com.example.ratonean2_app.product.data.local.ProductLocalDataSource
 import com.example.ratonean2_app.product.data.provider.ProductProviderImpl
 import com.example.ratonean2_app.product.data.repository.ProductRepositoryImpl
@@ -11,7 +11,9 @@ import com.example.ratonean2_app.product.domain.usecase.DeleteProductUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetAllProductsUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetPopularProductsUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductByIdUseCase
+import com.example.ratonean2_app.product.domain.usecase.GetProductsByBranchKeyUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsByBranchUseCase
+import com.example.ratonean2_app.product.domain.usecase.GetProductsBySearchInBranchKeysUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsBySearchInBranches
 import com.example.ratonean2_app.product.domain.usecase.GetProductsNearbyUseCase
 import com.example.ratonean2_app.product.domain.usecase.GetProductsWithPromosUseCase
@@ -21,7 +23,7 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val productModule = module {
-    single<ProductProvider> { ProductProviderImpl(get()) }
+    single<ProductProvider> { ProductProviderImpl(get(), get()) }
     factory { CreateNewProductUseCase(get()) }
     factory { GetAllProductsUseCase(get()) }
     factory { GetProductByIdUseCase(get()) }
@@ -29,13 +31,14 @@ val productModule = module {
     factory { DeleteProductUseCase(get()) }
     viewModel { ProductViewModel(get()) }
     factory { GetProductsByBranchUseCase(get()) }
+    factory { GetProductsByBranchKeyUseCase(get()) }
     factory { GetProductsWithPromosUseCase(get()) }
     factory { GetProductsBySearchInBranches(get()) }
+    factory { GetProductsBySearchInBranchKeysUseCase(get()) }
     factory { GetPopularProductsUseCase(get()) }
     factory { GetProductsNearbyUseCase(get()) }
 
-    single { get<AppDatabase>().productDao() }
+    single { get<CatalogDatabase>().productDao() }
     single { ProductLocalDataSource(get()) }
-    single<ProductProvider> { ProductProviderImpl(get()) }
     single<ProductRepository> { ProductRepositoryImpl(get(), get(), get()) }
 }

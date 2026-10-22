@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -20,10 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
 import com.example.ratonean2_app.R
 import com.example.ratonean2_app.ui.theme.RatoneanSuccess
 import kotlinx.coroutines.delay
@@ -57,7 +57,7 @@ fun ProductCard(
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.Start,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Image(
@@ -65,22 +65,11 @@ fun ProductCard(
                     contentDescription = null,
                     modifier = Modifier.size(32.dp)
                 )
-                IconButton(
-                    onClick = { /* TODO */ },
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
             }
 
-            AsyncImage(
-                model = productImageUrl,
-                contentDescription = productName,
+            ProductImage(
+                imageUrl = productImageUrl,
+                description = productName,
                 contentScale = ContentScale.Fit,
                 modifier = Modifier
                     .height(90.dp)
@@ -107,68 +96,48 @@ fun ProductCard(
                     .padding(vertical = 4.dp)
             )
 
-            Row(
+            // Botón Agregar (Carrito). Sin feature de comparar/favoritos: un solo CTA.
+            Button(
+                onClick = {
+                    if (!isChecked) {
+                        isChecked = true
+                        onAddClick()
+                        scope.launch {
+                            delay(1500)
+                            isChecked = false
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Botón Comparar
-                Button(
-                    onClick = { /* Comparar */ },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(38.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                ) {
-                    Text("comparar", fontSize = 11.sp)
-                }
-
-                // Botón Agregar (Carrito)
-                Button(
-                    onClick = {
-                        if (!isChecked) {
-                            isChecked = true
-                            onAddClick()
-                            scope.launch {
-                                delay(1500)
-                                isChecked = false
-                            }
-                        }
+                    .padding(top = 8.dp)
+                    .height(48.dp)
+                    .semantics {
+                        contentDescription = if (isChecked) "$productName agregado" else "Agregar $productName"
                     },
-                    modifier = Modifier
-                        .weight(1.2f)
-                        .height(38.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 4.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isChecked) RatoneanSuccess else MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    )
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isChecked) RatoneanSuccess else MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isChecked) Icons.Default.Check else Icons.Default.ShoppingCart,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = if (isChecked) "¡Listo!" else "Agregar",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1
-                        )
-                    }
+                    Icon(
+                        imageVector = if (isChecked) Icons.Default.Check else Icons.Default.ShoppingCart,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (isChecked) "¡Listo!" else "Agregar",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1
+                    )
                 }
             }
         }

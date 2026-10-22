@@ -17,7 +17,12 @@ data class MapViewState(
     val searchPlaces: List<PlaceResult> = emptyList(),
     val mapStatus: MapStatus = MapStatus.Loading,
     val searchStatus: SearchStatus = SearchStatus.Idle,
-    val permissionState: LocationPermissionState = LocationPermissionState.NotAsked
+    val permissionState: LocationPermissionState = LocationPermissionState.NotAsked,
+    val activeFilterCommerceIds: Set<String> = emptySet(),
+    // Paginación honesta de sucursales cercanas (20 por página).
+    val branchesOffset: Int = 0,
+    val isLoadingMoreBranches: Boolean = false,
+    val hasMoreBranches: Boolean = true
 )
 
 @Immutable
@@ -31,17 +36,6 @@ sealed interface MapStatus {
     object LocationDisabled : MapStatus
 }
 
-sealed class MapUiState {
-    object Loading : MapUiState()
-    data class Success(
-        val location: LocationModel,
-        val branches: List<Branch> = emptyList()
-    ) : MapUiState()
-    data class Error(val message: String) : MapUiState()
-    object PermissionDenied : MapUiState()
-    object LocationDisabled : MapUiState()
-}
-
 
 sealed class MapIntent {
     object LoadLocation : MapIntent()
@@ -49,6 +43,9 @@ sealed class MapIntent {
     data class SearchQuery(val query: String) : MapIntent()
     data class OnPermissionResult(val granted: Boolean) : MapIntent()
     data class AddProductToCart(val product: Product) : MapIntent()
+    data class ToggleCommerceFilter(val commerceId: String) : MapIntent()
+    object ClearCommerceFilters : MapIntent()
+    object LoadMoreBranches : MapIntent()
 }
 
 sealed interface LocationPermissionState {

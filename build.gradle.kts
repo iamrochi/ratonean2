@@ -5,4 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.jetbrainsKotlinSerialization)
     alias(libs.plugins.ksp)
+    // Crashlytics listo: se aplican en :app solo si existe google-services.json.
+    alias(libs.plugins.google.services) apply false
+    alias(libs.plugins.firebase.crashlytics) apply false
 }

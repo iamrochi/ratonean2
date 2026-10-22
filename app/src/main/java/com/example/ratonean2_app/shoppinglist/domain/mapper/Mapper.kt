@@ -7,22 +7,26 @@ import com.example.ratonean2_app.shoppinglist.domain.model.ShoppingItem
 import com.example.ratonean2_app.shoppinglist.domain.model.ShoppingList
 import java.util.UUID
 
-// --- ShoppingList ---
-fun ShoppingListEntity.toDomain() = ShoppingList(
+fun ShoppingListEntity.toDomain(itemCount: Int = 0, checkedCount: Int = 0) = ShoppingList(
     id = listId,
     name = name,
     isDefault = isDefault,
-    createdAt = createdAt
+    createdAt = createdAt,
+    budget = budget,
+    color = color,
+    itemCount = itemCount,
+    checkedCount = checkedCount
 )
 
 fun ShoppingList.toEntity() = ShoppingListEntity(
     listId = id,
     name = name,
     isDefault = isDefault,
-    createdAt = createdAt
+    createdAt = createdAt,
+    budget = budget,
+    color = color
 )
 
-// --- ShoppingItem ---
 fun ShoppingItemEntity.toDomain() = ShoppingItem(
     id = itemId,
     listId = listId,
@@ -34,7 +38,10 @@ fun ShoppingItemEntity.toDomain() = ShoppingItem(
     quantity = quantity,
     isChecked = isChecked,
     commerceId = commerceId,
-    branchId = branchId
+    branchId = branchId,
+    notes = notes,
+    priority = priority,
+    category = category
 )
 
 fun ShoppingItem.toEntity() = ShoppingItemEntity(
@@ -48,7 +55,10 @@ fun ShoppingItem.toEntity() = ShoppingItemEntity(
     quantity = quantity,
     isChecked = isChecked,
     commerceId = commerceId,
-    branchId = branchId
+    branchId = branchId,
+    notes = notes,
+    priority = priority,
+    category = category
 )
 
 fun Product.toShoppingItem(listId: String): ShoppingItem = ShoppingItem(
@@ -62,5 +72,6 @@ fun Product.toShoppingItem(listId: String): ShoppingItem = ShoppingItem(
     quantity = 1,
     isChecked = false,
     commerceId = this.commerceId,
-    branchId = this.branchId
+    branchId = this.branchId,
+    category = null
 )

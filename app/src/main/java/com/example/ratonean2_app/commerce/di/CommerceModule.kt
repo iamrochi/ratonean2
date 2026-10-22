@@ -10,7 +10,7 @@ import com.example.ratonean2_app.commerce.domain.usecase.DeleteCommerceUseCase
 import com.example.ratonean2_app.commerce.domain.usecase.GetCommerceByIdUseCase
 import com.example.ratonean2_app.commerce.domain.usecase.GetCommercesUseCase
 import com.example.ratonean2_app.commerce.domain.usecase.UpdateCommerceUseCase
-import com.example.ratonean2_app.core.data.database.AppDatabase
+import com.example.ratonean2_app.core.data.database.CatalogDatabase
 import org.koin.dsl.module
 
 val commerceModule = module {
@@ -21,10 +21,8 @@ val commerceModule = module {
     factory { UpdateCommerceUseCase(get()) }
     factory { DeleteCommerceUseCase(get()) }
 
-    single { get<AppDatabase>().commerceDao() }
+    single { get<CatalogDatabase>().commerceDao() }
     single { CommerceLocalDataSource(get()) }
-
-    single<CommerceProvider> { CommerceProviderImpl(get()) }
 
     single<CommerceRepository> { CommerceRepositoryImpl(get(), get()) }
 }

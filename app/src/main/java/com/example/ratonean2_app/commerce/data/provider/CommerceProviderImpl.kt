@@ -8,6 +8,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
+import io.ktor.client.request.parameter
 import io.ktor.client.request.post
 import io.ktor.client.request.put
 import io.ktor.client.request.setBody
@@ -16,17 +17,24 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.coroutines.cancellation.CancellationException
 
 class CommerceProviderImpl(private val client: HttpClient): CommerceProvider {
     override fun getAllCommerces(): Flow<NetworkResponse<List<Commerce>>> = flow {
         try {
             emit(NetworkResponse.Loading())
-            val response = client.get(ApiUrls.COMMERCES)
+            // P0.5: pagina por defecto para no traer la tabla entera a memoria.
+            val response = client.get(ApiUrls.COMMERCES) {
+                parameter("limit", 50)
+                parameter("offset", 0)
+            }
             if (response.status.isSuccess()) {
                 val commerces = response.body<List<Commerce>>()
                 emit(NetworkResponse.Success(commerces))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
             }
-        }catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -41,7 +49,7 @@ class CommerceProviderImpl(private val client: HttpClient): CommerceProvider {
             }else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        }catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -55,13 +63,12 @@ class CommerceProviderImpl(private val client: HttpClient): CommerceProvider {
             }
             if (response.status.isSuccess()) {
                 emit(NetworkResponse.Success(Unit))
-        }else {
+            } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        }catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
-
-            }
+        }
     }
 
     override fun updateCommerce(commerce: Commerce): Flow<NetworkResponse<Unit>> = flow {
@@ -76,7 +83,7 @@ class CommerceProviderImpl(private val client: HttpClient): CommerceProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        }catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -90,7 +97,7 @@ class CommerceProviderImpl(private val client: HttpClient): CommerceProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }

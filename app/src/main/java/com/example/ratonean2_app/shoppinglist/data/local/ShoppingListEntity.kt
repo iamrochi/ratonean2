@@ -2,6 +2,7 @@ package com.example.ratonean2_app.shoppinglist.data.local
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import java.util.UUID
 
@@ -9,8 +10,10 @@ import java.util.UUID
 data class ShoppingListEntity(
     @PrimaryKey val listId: String = UUID.randomUUID().toString(),
     val name: String,
-    val isDefault: Boolean = false, // Esta es la "Lista Activa"
-    val createdAt: Long = System.currentTimeMillis()
+    val isDefault: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis(),
+    val budget: Double? = null,
+    val color: String? = null
 )
 
 @Entity(
@@ -22,12 +25,14 @@ data class ShoppingListEntity(
             childColumns = ["listId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    // P0.3/M5: evita full-scan + acelera getItemInList / counts.
+    indices = [Index("listId"), Index(value = ["listId", "productId"])]
 )
 data class ShoppingItemEntity(
     @PrimaryKey val itemId: String = UUID.randomUUID().toString(),
-    val listId: String, // Relación con la lista
-    val productId: String, // Id del producto original (de la API/Room)
+    val listId: String,
+    val productId: String,
     val description: String,
     val brand: String,
     val imageUrl: String?,
@@ -35,6 +40,8 @@ data class ShoppingItemEntity(
     val quantity: Int = 1,
     val isChecked: Boolean = false,
     val commerceId: String,
-    val branchId: String
+    val branchId: String,
+    val notes: String? = null,
+    val priority: Int = 0,
+    val category: String? = null
 )
-

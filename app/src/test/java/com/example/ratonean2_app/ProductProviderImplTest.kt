@@ -3,136 +3,104 @@ package com.example.ratonean2_app
 import com.example.ratonean2_app.core.network.NetworkResponse
 import com.example.ratonean2_app.product.data.provider.ProductProviderImpl
 import com.example.ratonean2_app.product.domain.model.Product
-import com.example.ratonean2_app.product.domain.usecase.CreateNewProductUseCase
-import com.example.ratonean2_app.product.domain.usecase.DeleteProductUseCase
-import com.example.ratonean2_app.product.domain.usecase.GetAllProductsUseCase
-import com.example.ratonean2_app.product.domain.usecase.GetProductByIdUseCase
-import com.example.ratonean2_app.product.domain.usecase.UpdateProductUseCase
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.cio.CIO
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.flow.filterNot
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
-import org.junit.jupiter.api.AfterAll
-import org.junit.jupiter.api.BeforeAll
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.TestInstance
-import java.util.UUID
-import kotlin.test.assertIs
-import kotlin.test.assertTrue
 
-//Test de integración
-
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+/**
+ * Tests unitarios con MockEngine (offline, sin backend). Patrón base P1.6.
+ * Reemplaza los viejos tests de integración que exigían API real.
+ */
 class ProductProviderImplTest {
 
-    private lateinit var client: HttpClient
+    private val productJson = """
+        {"commerceId":"COM-001","flagId":"FLAG-A","branchId":"BR-001","productId":"P-1",
+         "ean":"7791234567890","description":"Leche Entera","presentationQuantity":1.0,
+         "presentationUnit":"Lts","brand":"La Lechera","listPrice":1500.0,
+         "referencePrice":1450.0,"referenceQuantity":1.0,"referenceUnit":"Lts"}
+    """.trimIndent()
 
-    private lateinit var productProviderImpl: ProductProviderImpl
-
-    private lateinit var createProductUseCase: CreateNewProductUseCase
-    private lateinit var deleteProductUseCase: DeleteProductUseCase
-    private lateinit var getProductByIdUseCase: GetProductByIdUseCase
-    private lateinit var getAllProductsUseCase: GetAllProductsUseCase
-    private lateinit var updateProductUseCase: UpdateProductUseCase
-
-    @BeforeAll
-    fun setupAll() {
-        client = HttpClient(CIO) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    prettyPrint = true
-                    isLenient = true
-                })
+    private fun client(status: HttpStatusCode = HttpStatusCode.OK): HttpClient {
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            val isList = request.method == HttpMethod.Get && path == "/product"
+            when {
+                status != HttpStatusCode.OK && isList ->
+                    respond("boom", status, headersOf(HttpHeaders.ContentType, "text/plain"))
+                request.method == HttpMethod.Get && path == "/product" ->
+                    respond("[$productJson]", HttpStatusCode.OK, jsonHeaders())
+                request.method == HttpMethod.Get && path.startsWith("/product/") ->
+                    if (path.endsWith("/missing")) respond("nf", HttpStatusCode.NotFound, jsonHeaders())
+                    else respond(productJson, HttpStatusCode.OK, jsonHeaders())
+                else -> respond("", HttpStatusCode.OK, headersOf(HttpHeaders.ContentType, "text/plain"))
             }
         }
-
-        productProviderImpl = ProductProviderImpl(client)
-        createProductUseCase = CreateNewProductUseCase(productProviderImpl)
-        deleteProductUseCase = DeleteProductUseCase(productProviderImpl)
-        getProductByIdUseCase = GetProductByIdUseCase(productProviderImpl)
-        getAllProductsUseCase = GetAllProductsUseCase(productProviderImpl)
-        updateProductUseCase = UpdateProductUseCase(productProviderImpl)
-
-    }
-
-    @AfterAll
-    fun tearDownAll() {
-        client.close()
-    }
-
-    suspend fun <T> getResult(flow: Flow<NetworkResponse<T>>): NetworkResponse<T> {
-        val results = mutableListOf<NetworkResponse<T>>()
-        flow.collect {
-            results.add(it)
+        return HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(Json { ignoreUnknownKeys = true; isLenient = true; coerceInputValues = true })
+            }
         }
-        return results.last { it !is NetworkResponse.Loading }
     }
 
+    private fun jsonHeaders() = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+
+    private val sample = Product(
+        commerceId = "COM-001", flagId = "FLAG-A", branchId = "BR-001", productId = "P-1",
+        ean = "7791234567890", description = "Leche Entera", presentationQuantity = 1.0,
+        presentationUnit = "Lts", brand = "La Lechera", listPrice = 1500.0,
+        referencePrice = 1450.0, referenceQuantity = 1.0, referenceUnit = "Lts"
+    )
 
     @Test
-    fun `getAllProducts should return a list of branches from the API`() = runBlocking {
-        val result = getResult(getAllProductsUseCase())
-        println("Raw result: $result")
-        when (result) {
-            is NetworkResponse.Success<*> -> println("Products: ${result.data}")
-            is NetworkResponse.Failure<*> -> println("Error: ${result.error}")
-            is NetworkResponse.Loading<*> -> println("Loading")
-        }
-        assertIs<NetworkResponse.Success<List<Product>>>(result)
-        assertTrue(
-            (result as NetworkResponse.Success<List<Product>>).data!!.isNotEmpty(),
-            "La lista de productos no debe estar vacía."
-        )
+    fun `getAllProducts Success emite lista`() = runTest {
+        val result = ProductProviderImpl(client()).getAllProducts()
+            .filterNot { it is NetworkResponse.Loading }.first()
+        val data = (result as NetworkResponse.Success<List<Product>>).data!!
+        kotlin.test.assertTrue(data.isNotEmpty(), "La lista mock no debe estar vacía")
     }
 
     @Test
-    fun `create, update, get by id and delete commerce should work correctly`() = runBlocking<Unit> {
-        val uniqueId = "test-${UUID.randomUUID()}"
-        val newProduct = Product(
-            commerceId = "COM-001",
-            flagId = "FLAG-A",
-            branchId = "BR-001",
-            productId = uniqueId,
-            ean = "7791234567890",
-            description = "Leche Entera",
-            presentationQuantity = 1.0,
-            presentationUnit = "Lts",
-            brand = "La Lechera",
-            listPrice = 1500.0,
-            referencePrice = 1450.0,
-            referenceQuantity = 1.0,
-            referenceUnit = "Lts",
-            promoPrice1 = 1200.0,
-            promoLegend1 = "2x1",
-            promoPrice2 = 1100.0,
-            promoLegend2 = "30% off con tarjeta"
-        )
+    fun `getAllProducts Failure en 500 no crashea`() = runTest {
+        val result = ProductProviderImpl(client(HttpStatusCode.InternalServerError)).getAllProducts()
+            .filterNot { it is NetworkResponse.Loading }.first()
+        kotlin.test.assertIs<NetworkResponse.Failure<*>>(result)
+    }
 
-        val createResult = getResult(createProductUseCase(newProduct))
-        println("Create Result: $createResult")
-        assertIs<NetworkResponse.Success<Unit>>(createResult)
+    @Test
+    fun `getProductById Success emite item`() = runTest {
+        val result = ProductProviderImpl(client()).getProductById("P-1")
+            .filterNot { it is NetworkResponse.Loading }.first()
+        val data = (result as NetworkResponse.Success<Product>).data!!
+        kotlin.test.assertEquals("P-1", data.productId)
+    }
 
-        val productToUpdate = newProduct.copy(description = "Leche a la mitad")
-        println("Branch to Update: $productToUpdate")
+    @Test
+    fun `getProductById 404 emite Failure`() = runTest {
+        val result = ProductProviderImpl(client()).getProductById("missing")
+            .filterNot { it is NetworkResponse.Loading }.first()
+        kotlin.test.assertIs<NetworkResponse.Failure<*>>(result)
+    }
 
-        val getBranchByIdResult = getResult(getProductByIdUseCase(uniqueId))
-        assertIs<NetworkResponse.Success<Unit>>(getBranchByIdResult)
-        assertTrue (getBranchByIdResult as NetworkResponse.Success<Product> != null,
-            "El producto obtenido no debe ser nulo."
-        )
-
-        val updateResult = getResult(updateProductUseCase(productToUpdate))
-        println("Update Result: $updateResult")
-        assertIs<NetworkResponse.Success<Unit>>(updateResult)
-
-        val deleteResult = getResult(deleteProductUseCase(uniqueId))
-        println("Delete Result: $deleteResult")
-        assertIs<NetworkResponse.Success<Unit>>(deleteResult)
-
+    @Test
+    fun `create update delete Success`() = runTest {
+        val provider = ProductProviderImpl(client())
+        suspend fun lastOk(flow: Flow<NetworkResponse<Unit>>) =
+            flow.filterNot { it is NetworkResponse.Loading }.first()
+        kotlin.test.assertIs<NetworkResponse.Success<*>>(lastOk(provider.createProduct(sample)))
+        kotlin.test.assertIs<NetworkResponse.Success<*>>(lastOk(provider.updateProduct(sample)))
+        kotlin.test.assertIs<NetworkResponse.Success<*>>(lastOk(provider.deleteProduct("P-1")))
     }
 }
-

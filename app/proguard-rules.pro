@@ -1,21 +1,44 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# P1.5: reglas R8 para release (isMinifyEnabled=true).
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Room ---
+-keep class androidx.room.RoomDatabase { *; }
+-keep class * extends androidx.room.RoomDatabase
+-keep @androidx.room.Entity class * { *; }
+-keep @androidx.room.Dao class * { *; }
+-dontwarn androidx.room.paging.**
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- kotlinx-serialization (DTOs y Entities) ---
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.**
+-keepclassmembers class kotlinx.serialization.json.** { *; }
+-keepclasseswithmembers class * {
+    @kotlinx.serialization.Serializable *;
+}
+# Modelos serializados por nombre (no ofuscar fields usados por backend/Room)
+-keep class com.example.ratonean2_app.** {
+    <fields>;
+    <init>(...);
+}
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Ktor ---
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+# --- Coil ---
+-keep class coil.** { *; }
+-dontwarn coil.**
+
+# --- MapLibre / Maps ---
+-keep class org.maplibre.** { *; }
+-dontwarn org.maplibre.**
+-keep class com.google.android.gms.maps.** { *; }
+
+# --- Koin (resolución por reflexión en viewModels) ---
+-keep class org.koin.** { *; }
+
+# --- Solo tests (no van en release, silenciar R8) ---
+-dontwarn org.apiguardian.**
+-dontwarn org.junit.**
+-dontwarn org.opentest4j.**

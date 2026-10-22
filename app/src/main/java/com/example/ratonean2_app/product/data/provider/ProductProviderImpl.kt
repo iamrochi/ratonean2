@@ -18,10 +18,14 @@ import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
+import java.net.URLEncoder
+import kotlin.coroutines.cancellation.CancellationException
 
-class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
+class ProductProviderImpl(
+    private val client: HttpClient,
+    private val pendingWritesDao: com.example.ratonean2_app.core.data.local.PendingWritesDao? = null
+) : ProductProvider {
     override fun getAllProducts(limit: Int, offset: Int): Flow<NetworkResponse<List<Product>>> = flow {
         emit(NetworkResponse.Loading())
         try {
@@ -34,7 +38,7 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -49,7 +53,7 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -66,8 +70,12 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
            } else {
                emit(NetworkResponse.Failure(response.status.description))
            }
-       }catch (e: Exception){
-           emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        } catch (e: CancellationException) { throw e } catch (e: Exception){
+           if (enqueueOffline("POST", "/product", product)) {
+               emit(NetworkResponse.Failure("Sin conexión — se enviará cuando haya red."))
+           } else {
+               emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+           }
        }
     }
 
@@ -83,8 +91,12 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
-            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            if (enqueueOffline("PUT", "/product/${product.productId}", product)) {
+                emit(NetworkResponse.Failure("Sin conexión — se enviará cuando haya red."))
+            } else {
+                emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+            }
         }
     }
 
@@ -97,9 +109,13 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        }catch (e: Exception){
-            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
-        }
+       } catch (e: CancellationException) { throw e } catch (e: Exception){
+           if (enqueueOffline("DELETE", "/product/$id", null)) {
+               emit(NetworkResponse.Failure("Sin conexión — se eliminará cuando haya red."))
+           } else {
+               emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+           }
+       }
     }
 
     override fun getProductsByBranch(
@@ -112,9 +128,34 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             val response = client.get(ApiUrls.PRODUCTS_BY_BRANCH.replace("{branchId}", branchId)) {
                 paginate(limit, offset)
             }
-            emit(NetworkResponse.Success(response.body()))
-        } catch (e: Exception) {
-            emit(NetworkResponse.Failure(e.message))
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        }
+    }
+
+    override fun getProductsByBranchKey(
+        branchKey: String,
+        limit: Int,
+        offset: Int
+    ): Flow<NetworkResponse<List<Product>>> = flow {
+        emit(NetworkResponse.Loading())
+        try {
+            val encoded = URLEncoder.encode(branchKey, "UTF-8")
+            val response = client.get(ApiUrls.PRODUCTS_BY_BRANCH_KEY.replace("{key}", encoded)) {
+                paginate(limit, offset)
+            }
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
 
@@ -130,9 +171,13 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             val response = client.get(url) {
                 paginate(limit, offset)
             }
-            emit(NetworkResponse.Success(response.body()))
-        } catch (e: Exception) {
-            emit(NetworkResponse.Failure(e.message))
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
 
@@ -141,9 +186,9 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
         query: String,
         limit: Int,
         offset: Int
-    ): Flow<NetworkResponse<List<Product>>> =
-        flow<NetworkResponse<List<Product>>> {
-            emit(NetworkResponse.Loading())
+    ): Flow<NetworkResponse<List<Product>>> = flow {
+        emit(NetworkResponse.Loading())
+        try {
             val idsParam = branchIds.joinToString(",")
             val url = ApiUrls.PRODUCTS_BY_SEARCH_IN_BRANCHES.appendParams(
                 mapOf("branchIds" to idsParam, "q" to query)
@@ -151,11 +196,39 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             val response = client.get(url) {
                 paginate(limit, offset)
             }
-            emit(NetworkResponse.Success(response.body()))
-        }.catch { e ->
-            if (e is kotlinx.coroutines.CancellationException) throw e
-            emit(NetworkResponse.Failure(e.message))
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
+    }
+
+    override fun getProductsBySearchInBranchKeys(
+        branchKeys: List<String>,
+        query: String,
+        limit: Int,
+        offset: Int
+    ): Flow<NetworkResponse<List<Product>>> = flow {
+        emit(NetworkResponse.Loading())
+        try {
+            val url = ApiUrls.PRODUCTS_BY_SEARCH_IN_BRANCH_KEYS.appendParams(
+                mapOf("branchKeys" to branchKeys.joinToString(","), "q" to query)
+            )
+            val response = client.get(url) {
+                paginate(limit, offset)
+            }
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure(response.status.description))
+            }
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        }
+    }
 
     override fun getPopularProducts(
         branchIds: List<String>,
@@ -171,7 +244,12 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             val response = client.get(url) {
                 paginate(offset = offset)
             }
-            emit(NetworkResponse.Success(response.body()))
+            // P0.5: antes emitía Success sin chequear status.
+            if (response.status.isSuccess()) {
+                emit(NetworkResponse.Success(response.body()))
+            } else {
+                emit(NetworkResponse.Failure("HTTP ${response.status.value}"))
+            }
         } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message))
         }
@@ -201,8 +279,36 @@ class ProductProviderImpl(private val client: HttpClient) : ProductProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
+        }
+    }
+
+    /**
+     * Outbox offline-first: si no hay red, guarda la escritura con su
+     * Idempotency-Key para que OutboxSyncWorker la reintente. Devuelve true
+     * si se encoló (el caller emite "se enviará con red").
+     */
+    private suspend fun enqueueOffline(method: String, path: String, product: Product?): Boolean {
+        val dao = pendingWritesDao ?: return false
+        return try {
+            val body = product?.let {
+                kotlinx.serialization.json.Json.encodeToString(
+                    Product.serializer(), it
+                )
+            }
+            dao.enqueue(
+                com.example.ratonean2_app.core.data.local.PendingWriteEntity(
+                    method = method,
+                    path = path,
+                    bodyJson = body,
+                    idempotencyKey = java.util.UUID.randomUUID().toString()
+                )
+            )
+            com.example.ratonean2_app.core.work.OutboxSyncScheduler.scheduleNow()
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 }

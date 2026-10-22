@@ -1,6 +1,5 @@
 package com.example.ratonean2_app.shoppinglist.di
 
-import com.example.ratonean2_app.core.data.database.AppDatabase
 import com.example.ratonean2_app.shoppinglist.data.local.ShoppingListLocalDataSource
 import com.example.ratonean2_app.shoppinglist.data.repository.ShoppingListRepositoryImpl
 import com.example.ratonean2_app.shoppinglist.domain.repository.ShoppingListRepository
@@ -15,7 +14,7 @@ import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
 
 val shoppingListModule = module {
-    single { get<AppDatabase>().shoppingListDao() }
+    // P0.3/m2: shoppingListDao() ya lo provee databaseModule. No duplicar.
     single { ShoppingListLocalDataSource(get()) }
     single<ShoppingListRepository> { ShoppingListRepositoryImpl(get()) }
     viewModel { ShoppingListViewModel(get(), get(), get(), get(), get()) }

@@ -19,10 +19,11 @@ import com.example.ratonean2_app.R
 
 @Composable
 fun CurrentLocationHeader(
-    locationName: String = "Tu corazón ♡"
+    locationName: String = "Ubicación actual",
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically

@@ -1,14 +1,19 @@
 package com.example.ratonean2_app.branch.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.ratonean2_app.branch.domain.model.Branch
 import kotlinx.serialization.Serializable
 
-@Entity(tableName = "branches")
+@Entity(
+    tableName = "branches",
+    indices = [Index("commerceId"), Index("branchId")]
+)
 @Serializable
 data class BranchEntity(
-    @PrimaryKey val branchId: String,
+    @PrimaryKey val branchKey: String,
+    val branchId: String,
     val commerceId: String,
     val flagId: String,
     val name: String,
@@ -59,6 +64,7 @@ fun BranchEntity.toDomain(): Branch =
 
 fun Branch.toEntity(): BranchEntity =
     BranchEntity(
+        branchKey = "$commerceId|$flagId|$branchId",
         branchId = branchId,
         commerceId = commerceId,
         flagId = flagId,

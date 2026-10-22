@@ -15,8 +15,11 @@ interface CommerceDao {
     fun getAll(): Flow<List<CommerceEntity>>
 
     // Agregamos este para el detalle rápido
-    @Query("SELECT * FROM commerce WHERE id = :id")
+    @Query("SELECT * FROM commerce WHERE id = :id LIMIT 1")
     fun getById(id: String): Flow<CommerceEntity?>
+
+    @Query("SELECT * FROM commerce WHERE commerceKey = :key LIMIT 1")
+    fun getByKey(key: String): Flow<CommerceEntity?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(list: List<CommerceEntity>)

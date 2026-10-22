@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -33,12 +34,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.painter.ColorPainter
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.ratonean2_app.branch.domain.helper.assignImageToCommerce
 import com.example.ratonean2_app.product.domain.model.Product
+import com.example.ratonean2_app.product.presentation.components.ProductImage
 import com.example.ratonean2_app.ui.theme.RatoneanSuccess
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -50,7 +55,7 @@ fun ProductItem(product: Product, onAddClick: () -> Unit) {
 
     Card(
         modifier = Modifier
-            .height(155.dp)
+            .height(190.dp)
             .width(170.dp),
         shape = MaterialTheme.shapes.medium,
         colors = CardDefaults.cardColors(
@@ -65,18 +70,20 @@ fun ProductItem(product: Product, onAddClick: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                product.imageUrl?.let {
-                    AsyncImage(
-                        model = it,
-                        contentDescription = null,
-                        modifier = Modifier.size(45.dp)
-                    )
-                }
+                val imageFallback = ColorPainter(MaterialTheme.colorScheme.surfaceVariant)
+                ProductImage(
+                    imageUrl = product.imageUrl,
+                    description = product.description,
+                    modifier = Modifier.size(45.dp)
+                )
                 Spacer(modifier = Modifier.weight(1f))
                 product.commerceId?.let { id ->
                     AsyncImage(
                         model = assignImageToCommerce(id),
-                        contentDescription = null,
+                        contentDescription = "Logo del comercio",
+                        placeholder = imageFallback,
+                        error = imageFallback,
+                        fallback = imageFallback,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -115,7 +122,13 @@ fun ProductItem(product: Product, onAddClick: () -> Unit) {
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(34.dp),
+                    // Target táctil 48dp (el botón se dibuja de 48 de alto).
+                    .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                    .semantics {
+                        contentDescription = if (isChecked)
+                            "${product.description} agregado"
+                        else "Sumar ${product.description}"
+                    },
                 shape = RoundedCornerShape(8.dp),
                 contentPadding = PaddingValues(horizontal = 8.dp),
                 colors = ButtonDefaults.buttonColors(

@@ -1,18 +1,25 @@
 package com.example.ratonean2_app.product.data.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.ratonean2_app.product.domain.model.Product
 import kotlinx.serialization.Serializable
 
-@Entity(tableName = "products")
+@Entity(
+    tableName = "products",
+    indices = [Index("branchId"), Index("branchKey"), Index("productId"), Index("ean")]
+)
 @Serializable
 data class ProductEntity(
+    // Clave sintética: el mismo id_producto se repite en muchas sucursales.
+    @PrimaryKey val productKey: String,
+
     val commerceId: String,
     val flagId: String,
     val branchId: String,
-
-    @PrimaryKey val productId: String,
+    val branchKey: String,
+    val productId: String,
 
     val ean: String,
     val description: String,
@@ -53,9 +60,11 @@ fun ProductEntity.toDomain(): Product = Product(
 )
 
 fun Product.toEntity(): ProductEntity = ProductEntity(
+    productKey = "$commerceId|$flagId|$branchId|$productId",
     commerceId = commerceId,
     flagId = flagId,
     branchId = branchId,
+    branchKey = "$commerceId|$flagId|$branchId",
     productId = productId,
     ean = ean,
     description = description,

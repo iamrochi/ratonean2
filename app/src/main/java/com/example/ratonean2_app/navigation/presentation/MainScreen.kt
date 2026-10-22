@@ -1,10 +1,5 @@
 package com.example.ratonean2_app.navigation.presentation
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -15,6 +10,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -25,17 +21,23 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.ratonean2_app.R
+import com.example.ratonean2_app.branch.domain.model.branchKey
+import com.example.ratonean2_app.branch.detail.presentation.view.BranchDetailScreen
+import com.example.ratonean2_app.branch.domain.model.Branch
 import com.example.ratonean2_app.list.presentation.view.ListScreen
 import com.example.ratonean2_app.map.presentation.state.MapIntent
 import com.example.ratonean2_app.map.presentation.state.MapViewState
 import com.example.ratonean2_app.map.presentation.view.MapScreen
 import com.example.ratonean2_app.map.presentation.viewmodel.MapViewModel
 import com.example.ratonean2_app.navigation.presentation.components.DrawerContent
+import com.example.ratonean2_app.navigation.presentation.components.OfflineBanner
 import com.example.ratonean2_app.navigation.presentation.components.SearchBarHeader
 import com.example.ratonean2_app.navigation.presentation.components.TabButton
+import com.example.ratonean2_app.product.domain.model.Product
 import com.example.ratonean2_app.product.presentation.components.ProductCard
 import com.example.ratonean2_app.profile.ProfileScreen
 import com.example.ratonean2_app.shoppinglist.presentation.ShoppingListScreen
+import com.example.ratonean2_app.shoppinglist.presentation.compare.CompareListsScreen
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
@@ -49,23 +51,36 @@ fun MainScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
 
-    var query by remember { mutableStateOf("") }
-    var active by remember { mutableStateOf(false) }
+    var query by rememberSaveable { mutableStateOf("") }
     val uiState by mapViewModel.state.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val connectivity = remember(context) {
+        com.example.ratonean2_app.core.network.ConnectivityObserver(context.applicationContext)
+    }
+    val isOnline by connectivity.isOnline.collectAsStateWithLifecycle()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: "home"
 
     val snackbarHostState = remember { SnackbarHostState() }
-    var selectedTabInHome by remember { mutableStateOf("map") }
+    var selectedTabInHome by rememberSaveable { mutableStateOf("map") }
+
 
     LaunchedEffect(Unit) {
         mapViewModel.events.collect { message ->
-            snackbarHostState.showSnackbar(
+            // P1.1: VER LISTA ahora navega. Antes se ignoraba el SnackbarResult.
+            val result = snackbarHostState.showSnackbar(
                 message = message,
                 actionLabel = "VER LISTA",
                 duration = SnackbarDuration.Long
             )
+            if (result == SnackbarResult.ActionPerformed) {
+                navController.navigate("shopping_list") {
+                    popUpTo("home") { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
         }
     }
 
@@ -74,6 +89,7 @@ fun MainScreen(
         gesturesEnabled = drawerState.isOpen,
         drawerContent = {
             DrawerContent(
+                currentRoute = currentRoute,
                 onDestinationClicked = { route ->
                     scope.launch { drawerState.close() }
                     navController.navigate(route) {
@@ -85,7 +101,7 @@ fun MainScreen(
             )
         }
     ) {
-        Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
             Scaffold(
                 snackbarHost = {
                     SnackbarHost(
@@ -101,43 +117,112 @@ fun MainScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     composable("home") {
-                        HomePagerContent(
-                            uiState = uiState,
-                            onIntent = { intent -> mapViewModel.onIntent(intent) },
-                            isSearchActive = active,
-                            selectedTab = selectedTabInHome,
-                            onTabChanged = { tab -> selectedTabInHome = tab }
+                        // Scaffold propio: search + tabs en topBar real (antes overlay
+                        // flotante + padding mágico de 160dp en Lista que se rompía
+                        // con font-scale/landscape/foldables).
+                        Scaffold(
+                            topBar = {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .statusBarsPadding(),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    if (!isOnline) OfflineBanner()
+                                    SearchBarHeader(
+                                        query = query,
+                                        onQueryChange = { query = it },
+                                        drawerState = drawerState,
+                                        uiState = uiState,
+                                        onClearClick = { query = "" },
+                                        onIntent = { intent -> mapViewModel.onIntent(intent) },
+                                    )
+                                    HomeTabSelector(
+                                        selectedTab = selectedTabInHome,
+                                        onTabSelected = { tab -> selectedTabInHome = tab }
+                                    )
+                                }
+                            },
+                            containerColor = Color.Transparent
+                        ) { innerPadding ->
+                            HomePagerContent(
+                                uiState = uiState,
+                                onIntent = { intent -> mapViewModel.onIntent(intent) },
+                                selectedTab = selectedTabInHome,
+                                onTabChanged = { tab -> selectedTabInHome = tab },
+                                onBranchClick = { branch ->
+                                    navController.navigate(
+                                        Screen.BranchDetail.createRoute(branch.branchKey, branch.name)
+                                    )
+                                },
+                                onShoppingListClick = {
+                                    navController.navigate("shopping_list") {
+                                        popUpTo("home") { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                },
+                                onMarkerClick = { branchKey, branchName ->
+                                    navController.navigate(
+                                        Screen.BranchDetail.createRoute(branchKey, branchName)
+                                    )
+                                },
+                                modifier = Modifier.padding(innerPadding)
+                            )
+                        }
+                    }
+                    composable("profile") {
+                        ProfileScreen(onBack = { navController.popBackStack() })
+                    }
+                    composable("shopping_list") {
+                        ShoppingListScreen(
+                            onBack = { navController.popBackStack() },
+                            onCompare = {
+                                // launchSingleTop: el doble-tap ya no apila N compares.
+                                navController.navigate(Screen.CompareLists.route) {
+                                    launchSingleTop = true
+                                }
+                            },
+                            onSearchProducts = {
+                                navController.navigate("home") {
+                                    popUpTo("home") { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
                         )
                     }
-                    composable("profile") { ProfileScreen() }
-                    composable("shopping_list") { ShoppingListScreen() }
-                }
-            }
-
-            if (currentRoute == "home") {
-                Column(
-                    modifier = Modifier.fillMaxWidth().statusBarsPadding(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    SearchBarHeader(
-                        query = query,
-                        onQueryChange = { query = it },
-                        active = active,
-                        onActiveChange = { active = it },
-                        drawerState = drawerState,
-                        uiState = uiState,
-                        onClearClick = { query = "" },
-                        onIntent = { intent -> mapViewModel.onIntent(intent) },
-                    )
-
-                    AnimatedVisibility(
-                        visible = !active,
-                        enter = fadeIn() + expandVertically(),
-                        exit = fadeOut() + shrinkVertically()
-                    ) {
-                        HomeTabSelector(
-                            selectedTab = selectedTabInHome,
-                            onTabSelected = { selectedTabInHome = it }
+                    composable(Screen.CompareLists.route) {
+                        CompareListsScreen(
+                            onBack = { navController.popBackStack() }
+                        )
+                    }
+                    composable(
+                        route = Screen.BranchDetail.route,
+                        arguments = listOf(
+                            androidx.navigation.navArgument("branchKey") { type = androidx.navigation.NavType.StringType },
+                            androidx.navigation.navArgument("branchName") {
+                                type = androidx.navigation.NavType.StringType
+                                defaultValue = ""
+                            }
+                        )
+                    ) { backStackEntry ->
+                        val branchKey = backStackEntry.arguments?.getString("branchKey") ?: ""
+                        // Query-arg: Navigation ya decodifica (antes URLDecoder manual).
+                        val branchName = backStackEntry.arguments?.getString("branchName") ?: ""
+                        // P0.6: guard + decode moderno. Antes navegaba a detail con id="" (404)
+                        // y URLDecoder deprecated lanzaba con % malformado.
+                        if (branchKey.isBlank()) {
+                            LaunchedEffect(Unit) { navController.popBackStack() }
+                            return@composable
+                        }
+                        BranchDetailScreen(
+                            branchKey = branchKey,
+                            branchName = branchName,
+                            onBack = { navController.popBackStack() },
+                            onAddProduct = { product ->
+                                mapViewModel.onIntent(MapIntent.AddProductToCart(product))
+                            }
                         )
                     }
                 }
@@ -173,12 +258,20 @@ fun HomeTabSelector(
 fun HomePagerContent(
     uiState: MapViewState,
     onIntent: (intent: MapIntent) -> Unit,
-    isSearchActive: Boolean,
     selectedTab: String,
-    onTabChanged: (String) -> Unit
+    onTabChanged: (String) -> Unit,
+    onBranchClick: (Branch) -> Unit,
+    onShoppingListClick: () -> Unit,
+    onMarkerClick: (branchKey: String, branchName: String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    var currentIndex by remember { mutableIntStateOf(0) }
+    val products = uiState.searchProducts
+    var currentIndex by rememberSaveable { mutableIntStateOf(0) }
     val pagerState = rememberPagerState(pageCount = { 2 })
+
+    // Resetea el carrusel cuando cambia el resultado (antes quedaba el índice
+    // viejo apuntando a otro producto o fuera de rango).
+    LaunchedEffect(products) { currentIndex = 0 }
 
     LaunchedEffect(selectedTab) {
         val target = if (selectedTab == "map") 0 else 1
@@ -186,12 +279,12 @@ fun HomePagerContent(
             pagerState.animateScrollToPage(target)
         }
     }
-    
+
     LaunchedEffect(pagerState.currentPage) {
         onTabChanged(if (pagerState.currentPage == 0) "map" else "list")
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
         HorizontalPager(
             state = pagerState,
             userScrollEnabled = false,
@@ -199,21 +292,25 @@ fun HomePagerContent(
             beyondViewportPageCount = 1
         ) { page ->
             when (page) {
-                0 -> MapScreen(uiState = uiState, onIntent = onIntent)
+                0 -> MapScreen(
+                    uiState = uiState,
+                    onIntent = onIntent,
+                    onMarkerClick = onMarkerClick
+                )
                 1 -> ListScreen(
                     uiState = uiState,
                     onIntent = onIntent,
-                    modifier = Modifier.padding(top = 160.dp)
+                    onBranchClick = onBranchClick,
+                    onShoppingListClick = onShoppingListClick
                 )
             }
         }
 
-        if (selectedTab == "map" && uiState.searchProducts.isNotEmpty() && !isSearchActive) {
+        if (selectedTab == "map" && products.isNotEmpty()) {
             Box(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 64.dp).fillMaxWidth(),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 80.dp).fillMaxWidth(),
                 contentAlignment = Alignment.Center
             ) {
-                val products = uiState.searchProducts
                 if (products.size > 1) {
                     IconButton(
                         onClick = { currentIndex = if (currentIndex > 0) currentIndex - 1 else products.lastIndex },

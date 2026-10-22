@@ -10,7 +10,6 @@ lifecycleRuntimeKtx = "2.9.2"
 activityCompose = "1.10.1"
 composeBom = "2024.09.00"
 playServicesLocation = "21.3.0"
-playServicesMaps = "19.2.0"
 ktor = "3.2.2"
 googlesignin = "21.2.0"
 pluginserialization = "2.0.21"
@@ -27,6 +26,11 @@ room = "2.7.0"
 
 maplibre = "13.0.2"
 datastore = "1.2.1"
+work = "2.9.0"
+# Firebase (Crashlytics listo, se activa solo con app/google-services.json presente)
+firebase-bom = "32.7.0"
+google-services-plugin = "4.4.1"
+firebase-crashlytics-plugin = "2.9.9"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -44,7 +48,6 @@ androidx-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-man
 androidx-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-material3 = { group = "androidx.compose.material3", name = "material3" }
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
-play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 #ktor
 ktor-client-core = { group = "io.ktor", name = "ktor-client-core", version.ref = "ktor" }
@@ -87,12 +90,18 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
 
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "work" }
+
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase-bom" }
+firebase-crashlytics = { group = "com.google.firebase", name = "firebase-crashlytics" }
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics" }
+
 [bundles]
 ktor-client = ["ktor-client-core", "ktor-client-android", "ktor-client-content-negotiation", "ktor-serialization-kotlinx-json"]
 ktor-testing = ["ktor-client-mock", "ktor-client-cio"]
 compose = ["androidx-ui", "androidx-ui-graphics", "androidx-ui-tooling-preview", "androidx-material3"]
 compose-testing = ["androidx-ui-test-junit4", "androidx-ui-tooling", "androidx-ui-test-manifest"]
-play-services = ["play-services-location", "play-services-maps"]
+play-services = ["play-services-location"]
 junit5 = ["junit-jupiter-api", "junit-jupiter-engine", "junit-jupiter-params"]
 test-libraries = ["mockk", "kotlinx-coroutines-test"]
 
@@ -102,3 +111,5 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 jetbrainsKotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "pluginserialization" }
 ksp = { id = "com.google.devtools.ksp", version = "2.3.6" }
+google-services = { id = "com.google.gms.google-services", version.ref = "google-services-plugin" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebase-crashlytics-plugin" }

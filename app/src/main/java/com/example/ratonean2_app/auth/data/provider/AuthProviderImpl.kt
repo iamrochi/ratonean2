@@ -9,20 +9,29 @@ import com.example.ratonean2_app.core.network.ApiUrls
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.ClientRequestException
+import io.ktor.client.plugins.ServerResponseException
 import io.ktor.client.request.*
-import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
+import kotlin.coroutines.cancellation.CancellationException
 
 class AuthProviderImpl(private val client: HttpClient): AuthProvider {
     override suspend fun loginWithGoogle(token: String): AuthResponse {
-        return try {
-            client.post(ApiUrls.AUTH_GOOGLE) {
+        // P0.5: sin expectSuccess, Ktor no lanza en 4xx. Chequeo manual de status.
+        try {
+            val response = client.post(ApiUrls.AUTH_GOOGLE) {
                 contentType(ContentType.Application.Json)
                 setBody(GoogleTokenRequest(token))
-            }.body<AuthResponse>()
-        } catch (e: ClientRequestException) { // 4xx
-            val errorText = e.response.bodyAsText()
-            throw Exception("Error al loguear: $errorText")
+            }
+            if (!response.status.isSuccess()) {
+                throw Exception("Error al loguear (${response.status.value})")
+            }
+            return response.body<AuthResponse>()
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) {
+            if (e is ClientRequestException || e is ServerResponseException) {
+                throw Exception("Error al loguear (${e.response.status.value})")
+            }
+            throw e
         }
     }
 
@@ -30,17 +39,40 @@ class AuthProviderImpl(private val client: HttpClient): AuthProvider {
         email: String,
         password: String
     ): AuthResponse {
-        return client.post(ApiUrls.LOGIN) {
-            contentType(ContentType.Application.Json)
-            setBody(LoginRequest(email, password))
-        }.body<AuthResponse>()
+        // P0.5: antes sin try/catch -> cualquier timeout crasheaba al caller.
+        try {
+            val response = client.post(ApiUrls.LOGIN) {
+                contentType(ContentType.Application.Json)
+                setBody(LoginRequest(email.trim(), password))
+            }
+            if (!response.status.isSuccess()) {
+                throw Exception(mapAuthError(response.status.value))
+            }
+            return response.body<AuthResponse>()
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { throw e }
     }
 
     override suspend fun createUserWithEmail(name: String, email: String, password: String?) {
-        client.post(ApiUrls.USERS) {
-            contentType(ContentType.Application.Json)
-            setBody(CreateUserRequest(name, email, password))
-        }
+        try {
+            val response = client.post(ApiUrls.USERS) {
+                contentType(ContentType.Application.Json)
+                setBody(CreateUserRequest(name.trim(), email.trim(), password))
+            }
+            if (!response.status.isSuccess()) {
+                throw Exception(mapAuthError(response.status.value))
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (e: Exception) { throw e }
     }
 
+    private fun mapAuthError(code: Int): String = when (code) {
+        400, 422 -> "Datos inválidos. Revisá email y contraseña."
+        401 -> "Tu sesión expiró. Iniciá sesión nuevamente."
+        404 -> "El recurso solicitado no fue encontrado."
+        409 -> "Ese email ya está registrado."
+        429 -> "Demasiadas solicitudes. Esperá un momento e intentá de nuevo."
+        in 500..599 -> "El servidor tuvo un problema. Intentá de nuevo en unos minutos."
+        else -> "Ocurrió un error inesperado ($code)."
+    }
 }

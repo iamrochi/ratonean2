@@ -14,6 +14,14 @@ class GetItemsFromListUseCase(private val repository: ShoppingListRepository) {
     operator fun invoke(listId: String): Flow<List<ShoppingItem>> = repository.getItemsForList(listId)
 }
 
+class GetItemsFromListsUseCase(private val repository: ShoppingListRepository) {
+    operator fun invoke(listIds: List<String>): Flow<List<ShoppingItem>> = repository.getItemsForLists(listIds)
+}
+
+class GetListItemsOnceUseCase(private val repository: ShoppingListRepository) {
+    suspend operator fun invoke(listId: String): List<ShoppingItem> = repository.getItemsForListOnce(listId)
+}
+
 class AddToActiveListUseCase(private val repository: ShoppingListRepository) {
     suspend operator fun invoke(product: Product) = repository.addItemToActiveList(product)
 }
@@ -27,10 +35,14 @@ class ManageShoppingItemUseCase(private val repository: ShoppingListRepository) 
     suspend fun toggleCheck(itemId: String, checked: Boolean) = repository.toggleItemCheck(itemId, checked)
     suspend fun delete(itemId: String) = repository.deleteItem(itemId)
     suspend fun clearChecked(listId: String) = repository.deleteCheckedItems(listId)
+    suspend fun updateNotes(itemId: String, notes: String?) = repository.updateNotes(itemId, notes)
+    suspend fun updatePriority(itemId: String, priority: Int) = repository.updatePriority(itemId, priority)
 }
 
 class ManageShoppingListUseCase(private val repository: ShoppingListRepository) {
     suspend fun create(name: String, active: Boolean = false) = repository.createList(name, active)
     suspend fun rename(id: String, name: String) = repository.renameList(id, name)
     suspend fun delete(id: String) = repository.deleteList(id)
+    suspend fun setBudget(id: String, budget: Double?) = repository.setBudget(id, budget)
+    suspend fun setColor(id: String, color: String?) = repository.setColor(id, color)
 }

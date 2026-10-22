@@ -29,8 +29,13 @@ data class Branch(
     val sundaySchedule: String? = null
 )
 
+/** Clave compuesta; id_sucursal no es único entre comercios. */
+val Branch.branchKey: String
+    get() = "$commerceId|$flagId|$branchId"
+
 fun Branch.toEntity(): BranchEntity =
     BranchEntity(
+        branchKey = "$commerceId|$flagId|$branchId",
         branchId = branchId,
         commerceId = commerceId,
         flagId = flagId,

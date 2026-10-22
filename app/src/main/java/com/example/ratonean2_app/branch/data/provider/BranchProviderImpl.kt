@@ -1,8 +1,8 @@
 package com.example.ratonean2_app.branch.data.provider
 
-import android.util.Log
 import com.example.ratonean2_app.branch.domain.model.Branch
 import com.example.ratonean2_app.branch.domain.provider.BranchProvider
+import com.example.ratonean2_app.core.logging.AppLogger
 import com.example.ratonean2_app.core.network.ApiUrls
 import com.example.ratonean2_app.core.network.NetworkResponse
 import com.example.ratonean2_app.core.network.paginate
@@ -19,6 +19,7 @@ import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlin.coroutines.cancellation.CancellationException
 
 class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
 
@@ -36,7 +37,7 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -51,7 +52,7 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -65,24 +66,25 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
     ): Flow<NetworkResponse<List<Branch>>> = flow {
         try {
             emit(NetworkResponse.Loading())
-            Log.d(TAG, "🌐 GET ${ApiUrls.BRANCHES_NEARBY} (lat=$latitude, lon=$longitude, radius=$distance)")
+            // P1.5: AppLogger no escribe en release (evita PII lat/lon en logcat).
+            AppLogger.d(TAG, "GET ${ApiUrls.BRANCHES_NEARBY} (radius=$distance)")
             val response = client.get(ApiUrls.BRANCHES_NEARBY) {
                 parameter("lat", latitude)
                 parameter("lon", longitude)
                 parameter("radius", distance)
                 paginate(limit, offset)
             }
-            Log.d(TAG, "🌐 Response status: ${response.status}")
+            AppLogger.d(TAG, "Response status: ${response.status}")
             if (response.status.isSuccess()) {
                 val branches = response.body<List<Branch>>()
-                Log.d(TAG, "🌐 Body: ${branches.size} sucursales")
+                AppLogger.d(TAG, "Body: ${branches.size} sucursales")
                 emit(NetworkResponse.Success(branches))
             } else {
-                Log.e(TAG, "🌐 Error status: ${response.status.description}")
+                AppLogger.e(TAG, "Error status: ${response.status.description}")
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "🌐 Exception: ${e.message}", e)
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
+            AppLogger.e(TAG, "Exception: ${e.message}", e)
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -99,7 +101,7 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -116,7 +118,7 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }
@@ -130,7 +132,7 @@ class BranchProviderImpl(private val client: HttpClient) : BranchProvider {
             } else {
                 emit(NetworkResponse.Failure(response.status.description))
             }
-        } catch (e: Exception) {
+        } catch (e: CancellationException) { throw e } catch (e: Exception) {
             emit(NetworkResponse.Failure(e.message ?: "Unknown error"))
         }
     }

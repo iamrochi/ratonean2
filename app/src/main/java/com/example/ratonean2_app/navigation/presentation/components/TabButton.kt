@@ -15,9 +15,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 @Composable
 fun TabButton(
@@ -39,9 +39,11 @@ fun TabButton(
             .padding(horizontal = 2.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(backgroundColor)
+            // Ripple + rol: antes indication=null y sin rol (invisible a TalkBack).
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
+                indication = androidx.compose.foundation.LocalIndication.current,
+                role = Role.Tab,
                 onClick = onClick
             )
             .padding(horizontal = 20.dp, vertical = 8.dp),
@@ -49,9 +51,9 @@ fun TabButton(
     ) {
         Text(
             text = text,
+            // Sin fontSize literal: labelLarge ya es 14sp y escala con el sistema.
             style = MaterialTheme.typography.labelLarge.copy(
                 fontWeight = if (selected) FontWeight.ExtraBold else FontWeight.Medium,
-                fontSize = 14.sp,
                 color = contentColor
             )
         )

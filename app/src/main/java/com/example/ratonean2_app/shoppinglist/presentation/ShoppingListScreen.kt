@@ -7,7 +7,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -15,30 +18,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.ratonean2_app.shoppinglist.presentation.components.ListSelectorContent
 import com.example.ratonean2_app.shoppinglist.presentation.components.ShoppingItemRow
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
-    val state by viewModel.state.collectAsState()
+fun ShoppingListScreen(
+    onCompare: () -> Unit = {},
+    onSearchProducts: () -> Unit = {},
+    onBack: () -> Unit = {},
+    viewModel: ShoppingListViewModel = koinViewModel()
+) {
+    val state by viewModel.state.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     var showSheet by remember { mutableStateOf(false) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf(false) }
     var showDeleteListDialog by remember { mutableStateOf(false) }
     var showClearCheckedDialog by remember { mutableStateOf(false) }
+    var showSortMenu by remember { mutableStateOf(false) }
     var listToEdit by remember { mutableStateOf<String?>(null) }
     var listNameToEdit by remember { mutableStateOf("") }
 
+    LaunchedEffect(state.error) {
+        state.error?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearError()
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -56,7 +78,74 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
                         }
                     }
                 },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Volver"
+                        )
+                    }
+                },
                 actions = {
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.Default.Sort, contentDescription = "Ordenar")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Por defecto") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.DEFAULT))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nombre A-Z") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.NAME_ASC))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Nombre Z-A") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.NAME_DESC))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Precio menor") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.PRICE_ASC))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Precio mayor") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.PRICE_DESC))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Por prioridad") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.PRIORITY))
+                                    showSortMenu = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Comprados al final") },
+                                onClick = {
+                                    viewModel.onIntent(ShoppingIntent.SetSortMode(ItemSortMode.CHECKED_LAST))
+                                    showSortMenu = false
+                                }
+                            )
+                        }
+                    }
                     IconButton(onClick = {
                         state.selectedList?.let {
                             listToEdit = it.id
@@ -174,6 +263,18 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
                     onDelete = { id ->
                         listToEdit = id
                         showDeleteListDialog = true
+                    },
+                    onSetBudget = { id, budget ->
+                        viewModel.onIntent(ShoppingIntent.SetBudget(id, budget))
+                    },
+                    onSetColor = { id, color ->
+                        viewModel.onIntent(ShoppingIntent.SetColor(id, color))
+                    },
+                    onCompare = {
+                        scope.launch { sheetState.hide() }.invokeOnCompletion {
+                            showSheet = false
+                            onCompare()
+                        }
                     }
                 )
             }
@@ -191,17 +292,26 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
                         onValueChange = { newName = it },
                         label = { Text("Nombre de la lista") },
                         singleLine = true,
+                        supportingText = {
+                            if (newName.isBlank()) Text("El nombre no puede estar vacío")
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (newName.isNotBlank()) {
+                                viewModel.onIntent(ShoppingIntent.CreateList(newName.trim()))
+                                showCreateDialog = false
+                            }
+                        }),
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (newName.isNotBlank()) {
-                                viewModel.onIntent(ShoppingIntent.CreateList(newName))
-                                showCreateDialog = false
-                            }
-                        }
+                            viewModel.onIntent(ShoppingIntent.CreateList(newName.trim()))
+                            showCreateDialog = false
+                        },
+                        enabled = newName.isNotBlank()
                     ) { Text("CREAR") }
                 },
                 dismissButton = {
@@ -221,17 +331,28 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
                         onValueChange = { newName = it },
                         label = { Text("Nuevo nombre") },
                         singleLine = true,
+                        supportingText = {
+                            if (newName.isBlank()) Text("El nombre no puede estar vacío")
+                        },
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = {
+                            if (newName.isNotBlank() && listToEdit != null) {
+                                viewModel.onIntent(ShoppingIntent.RenameList(listToEdit!!, newName.trim()))
+                                showRenameDialog = false
+                            }
+                        }),
                         modifier = Modifier.fillMaxWidth()
                     )
                 },
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            if (newName.isNotBlank() && listToEdit != null) {
-                                viewModel.onIntent(ShoppingIntent.RenameList(listToEdit!!, newName))
-                                showRenameDialog = false
+                            listToEdit?.let {
+                                viewModel.onIntent(ShoppingIntent.RenameList(it, newName.trim()))
                             }
-                        }
+                            showRenameDialog = false
+                        },
+                        enabled = newName.isNotBlank() && listToEdit != null
                     ) { Text("GUARDAR") }
                 },
                 dismissButton = {
@@ -263,13 +384,21 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
         }
 
         if (state.isLoading) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
                 CircularProgressIndicator()
             }
         } else if (state.items.isEmpty()) {
-            EmptyListState(modifier = Modifier.padding(padding))
+            EmptyListState(modifier = Modifier.padding(padding), onSearch = onSearchProducts)
         } else {
-            val groupedItems = state.items.groupBy { it.commerceId }
+            // Agrupado memoizado: antes se recalculaba en cada recomposición.
+            val groupedItems = remember(state.sortedItems) {
+                state.sortedItems.groupBy { it.commerceId }
+            }
 
             LazyColumn(
                 modifier = Modifier
@@ -277,6 +406,12 @@ fun ShoppingListScreen(viewModel: ShoppingListViewModel = koinViewModel()) {
                     .padding(padding),
                 contentPadding = PaddingValues(bottom = 80.dp)
             ) {
+                if (state.items.isNotEmpty()) {
+                    item(key = "progress") {
+                        ProgressSection(state)
+                    }
+                }
+
                 groupedItems.forEach { (commerceId, items) ->
                     item(key = "header_$commerceId") {
                         CommerceHeader(commerceId = commerceId)
@@ -318,7 +453,9 @@ fun CommerceHeader(commerceId: String) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "Comercio: $commerceId", // Ideally replace with commerce name
+                // Sin lookup de comercios en este estado: muestra el id tal cual,
+                // con fallback honesto si viene vacío.
+                text = if (commerceId.isBlank()) "Comercio sin nombre" else "Comercio: $commerceId",
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -328,7 +465,79 @@ fun CommerceHeader(commerceId: String) {
 }
 
 @Composable
-fun EmptyListState(modifier: Modifier = Modifier) {
+fun ProgressSection(state: ShoppingViewState) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "${state.checkedCount}/${state.items.size} comprados",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                "${(state.progress * 100).toInt()}%",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        LinearProgressIndicator(
+            progress = { state.progress },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .semantics(mergeDescendants = true) {
+                    contentDescription =
+                        "${state.checkedCount} de ${state.items.size} productos comprados"
+                },
+            color = MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+            strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+        )
+
+        state.budgetProgress?.let { progress ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "Presupuesto: $${String.format("%.0f", state.selectedList?.budget ?: 0.0)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "$${String.format("%.2f", state.totalPrice)} / $${String.format("%.0f", state.selectedList?.budget ?: 0.0)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (progress > 1.0f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            LinearProgressIndicator(
+                progress = { progress.coerceAtMost(1.0f) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp),
+                color = if (progress > 1.0f) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+            )
+        }
+    }
+}
+
+@Composable
+fun EmptyListState(modifier: Modifier = Modifier, onSearch: () -> Unit = {}) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -366,7 +575,8 @@ fun EmptyListState(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(32.dp))
         Button(
-            onClick = { /* TODO: Navegar a búsqueda o categorías */ },
+            // CTA cableado: antes era el único camino de salida del empty y no hacía nada.
+            onClick = onSearch,
             shape = RoundedCornerShape(12.dp)
         ) {
             Icon(Icons.Default.Search, contentDescription = null)

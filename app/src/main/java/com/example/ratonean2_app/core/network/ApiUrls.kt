@@ -1,28 +1,33 @@
 package com.example.ratonean2_app.core.network
 
 object ApiUrls {
-    const val BASE_URL =  "http://192.168.100.40:8080"
-    const val LOGIN = "${BASE_URL}/auth/login"
-    const val AUTH_GOOGLE = "${BASE_URL}/auth/google"
-    const val USERS = "${BASE_URL}/users"
-    const val USER_BY_ID = "${BASE_URL}/users/{id}"
-    const val USER_BY_EMAIL = "${BASE_URL}/users/by-email/{email}"
+    // P0.1: URL por buildType (debug=emulador/local, release=HTTPS prod).
+    // Se configura en app/build.gradle.kts via API_BASE_URL_DEBUG / API_BASE_URL_RELEASE.
+    val BASE_URL: String = com.example.ratonean2_app.BuildConfig.BASE_URL
+    val LOGIN get() = "${BASE_URL}/auth/login"
+    val AUTH_GOOGLE get() = "${BASE_URL}/auth/google"
+    val USERS get() = "${BASE_URL}/users"
+    val USER_BY_ID get() = "${BASE_URL}/users/{id}"
+    // Backend: GET /users/by-email?email= (query param, CON auth JWT).
+    val USER_BY_EMAIL get() = "${BASE_URL}/users/by-email"
 
-    const val COMMERCES = "${BASE_URL}/commerce"
-    const val COMMERCES_BY_ID = "${BASE_URL}/commerce/{id}"
+    val COMMERCES get() = "${BASE_URL}/commerce"
+    val COMMERCES_BY_ID get() = "${BASE_URL}/commerce/{id}"
 
-    const val BRANCHES = "${BASE_URL}/branch"
-    const val BRANCHES_BY_ID = "${BASE_URL}/branch/{id}"
-    const val BRANCHES_NEARBY = "${BASE_URL}/branch/nearby"
+    val BRANCHES get() = "${BASE_URL}/branch"
+    val BRANCHES_BY_ID get() = "${BASE_URL}/branch/{id}"
+    val BRANCHES_NEARBY get() = "${BASE_URL}/branch/nearby"
 
-    const val PRODUCTS = "${BASE_URL}/product"
-    const val PRODUCTS_BY_ID = "${BASE_URL}/product/{id}"
-    const val PRODUCTS_BY_BRANCH = "${BASE_URL}/product/branch/{branchId}"
-    const val PRODUCTS_PROMOS = "${BASE_URL}/product/promos"
+    val PRODUCTS get() = "${BASE_URL}/product"
+    val PRODUCTS_BY_ID get() = "${BASE_URL}/product/{id}"
+    val PRODUCTS_BY_BRANCH get() = "${BASE_URL}/product/branch/{branchId}"
+    val PRODUCTS_BY_BRANCH_KEY get() = "${BASE_URL}/product/by-branch-key/{key}"
+    val PRODUCTS_BY_SEARCH_IN_BRANCH_KEYS get() = "${BASE_URL}/product/searchByBranchKeys"
+    val PRODUCTS_PROMOS get() = "${BASE_URL}/product/promos"
 
-    const val PRODUCTS_BY_SEARCH_IN_BRANCHES = "${BASE_URL}/product/searchNearby"
-    const val PRODUCTS_POPULAR = "${BASE_URL}/product/popularProducts"
-    const val PRODUCTS_NEARBY = "${BASE_URL}/product/nearby"
+    val PRODUCTS_BY_SEARCH_IN_BRANCHES get() = "${BASE_URL}/product/searchNearby"
+    val PRODUCTS_POPULAR get() = "${BASE_URL}/product/popularProducts"
+    val PRODUCTS_NEARBY get() = "${BASE_URL}/product/nearby"
 
     const val PLACES_URL = "https://nominatim.openstreetmap.org/search"
 }

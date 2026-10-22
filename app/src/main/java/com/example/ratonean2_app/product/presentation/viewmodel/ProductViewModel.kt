@@ -3,35 +3,52 @@ package com.example.ratonean2_app.product.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.ratonean2_app.core.network.NetworkResponse
+import com.example.ratonean2_app.core.network.toUserFriendlyMessage
 import com.example.ratonean2_app.product.domain.model.Product
 import com.example.ratonean2_app.product.domain.usecase.GetAllProductsUseCase
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+data class ProductUiState(
+    val products: List<Product> = emptyList(),
+    val filteredProducts: List<Product> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
 class ProductViewModel(
     private val getAllProductsUseCase: GetAllProductsUseCase
 ) : ViewModel() {
 
-    private val _products = MutableStateFlow<List<Product>>(emptyList())
-    val products: StateFlow<List<Product>> = _products
+    private val _uiState = MutableStateFlow(ProductUiState())
+    val uiState: StateFlow<ProductUiState> = _uiState.asStateFlow()
 
-    private val _filteredProducts = MutableStateFlow<List<Product>>(emptyList())
-    val filteredProducts: StateFlow<List<Product>> = _filteredProducts
+    init {
+        fetchProducts()
+    }
 
     private fun fetchProducts() {
         viewModelScope.launch {
             getAllProductsUseCase().collect { response ->
                 when (response) {
+                    is NetworkResponse.Loading -> {
+                        _uiState.update { it.copy(isLoading = true, error = null) }
+                    }
                     is NetworkResponse.Success -> {
-                        _products.value = response.data ?: emptyList()
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                products = response.data ?: emptyList()
+                            )
+                        }
                     }
                     is NetworkResponse.Failure -> {
-                        // podés manejar el error acá si querés
-                        _products.value = emptyList()
-                    }
-
-                    is NetworkResponse.Loading -> {
-                        // nada
+                        _uiState.update {
+                            it.copy(
+                                isLoading = false,
+                                error = response.error.toUserFriendlyMessage()
+                            )
+                        }
                     }
                 }
             }
@@ -40,13 +57,20 @@ class ProductViewModel(
 
     fun searchProducts(query: String) {
         if (query.isBlank()) {
-            _filteredProducts.value = emptyList()
+            _uiState.update { it.copy(filteredProducts = emptyList()) }
             return
         }
 
-        _filteredProducts.value = _products.value.filter {
-            it.description.contains(query, ignoreCase = true)
+        _uiState.update {
+            it.copy(
+                filteredProducts = it.products.filter { product ->
+                    product.description.contains(query, ignoreCase = true)
+                }
+            )
         }
     }
-}
 
+    fun clearError() {
+        _uiState.update { it.copy(error = null) }
+    }
+}

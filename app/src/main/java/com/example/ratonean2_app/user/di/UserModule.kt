@@ -23,7 +23,7 @@ val userModule = module {
     factory { DeleteUserByIdUseCase(get()) }
     factory { UpdateUserUseCase(get()) }
 
-    viewModel { ProfileViewModel(get(), get(), get()) }
+    viewModel { ProfileViewModel(get(), get(), get(), get()) }
 
     single { UserPreferencesManager(androidContext()) }
     single<UserRepository> { UserRepositoryImpl(get()) }

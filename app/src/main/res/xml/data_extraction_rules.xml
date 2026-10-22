@@ -1,19 +1,33 @@
-<?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backup Android 12+ (data-extraction-rules). Se respalda user_db (listas del
+  usuario); el catálogo vive en noBackupFilesDir y queda excluido solo.
+  Las SharedPreferences se EXCLUYEN enteras porque incluyen el token
+  cifrado (la MasterKey vive en el Keystore y no migra → restore rompería la
+  sesión). user_prefs (última ubicación) se pierde pero se re-obtiene por GPS.
 -->
-<data-extraction-rules>
+<!-- tools:ignore=FullBackupContent: el check de lint de este AGP solo conoce
+     la gramática legacy (<include domain path/>) y marca el formato anidado
+     de Android 12+ aunque es el documentado oficialmente. Quien lo parsea
+     en runtime es el servicio de backup del sistema, no lint. -->
+<data-extraction-rules xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="FullBackupContent">
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <include>
+            <database />
+            <files path="datastore" />
+        </include>
+        <exclude>
+            <sharedpreferences />
+        </exclude>
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <include>
+            <database />
+            <files path="datastore" />
+        </include>
+        <exclude>
+            <sharedpreferences />
+        </exclude>
     </device-transfer>
-    -->
 </data-extraction-rules>
